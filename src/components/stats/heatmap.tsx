@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState, type FocusEvent, type PointerEvent } from "react";
 import { cn, formatDate, seasonLabel, tmdbImage } from "@/lib/format";
 import { heatLevel, monthWeeks, MONTHS, weekColumns, type DayMap } from "@/lib/stats";
 
@@ -17,6 +17,63 @@ const NOUN: Record<Kind, [string, string]> = { movie: ["movie", "movies"], tv: [
 
 function countLabel(kind: Kind, n: number) {
   return `${n} ${n === 1 ? NOUN[kind][0] : NOUN[kind][1]}`;
+}
+
+type HoverHandler = (date: string | null, el?: HTMLElement) => void;
+
+/** Hover and keyboard focus both show the day popup. */
+function hoverProps(date: string, onHover: HoverHandler) {
+  return {
+    onPointerEnter: (e: PointerEvent<HTMLElement>) => onHover(date, e.currentTarget),
+    onPointerLeave: () => onHover(null),
+    onFocus: (e: FocusEvent<HTMLElement>) => onHover(date, e.currentTarget),
+    onBlur: () => onHover(null),
+  };
+}
+
+const TOOLTIP_WIDTH = 272;
+const TOOLTIP_MAX_ITEMS = 6;
+
+/** Floating popup over a hovered day: what you watched, with posters and your ratings. */
+function DayTooltip({ date, rect, days, kind }: { date: string; rect: DOMRect; days: DayMap; kind: Kind }) {
+  const entries = days[date] ?? [];
+  const left = Math.min(Math.max(rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2, 8), window.innerWidth - TOOLTIP_WIDTH - 8);
+  // Show above the square when there's room, otherwise below it.
+  const above = rect.top > 90 + Math.min(entries.length, TOOLTIP_MAX_ITEMS) * 44;
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none fixed z-50 rounded-lg border border-line bg-surface/95 p-3 shadow-2xl shadow-black/70 backdrop-blur"
+      style={{
+        width: TOOLTIP_WIDTH,
+        left,
+        top: above ? rect.top - 8 : rect.bottom + 8,
+        transform: above ? "translateY(-100%)" : undefined,
+      }}
+    >
+      <p className="text-xs font-semibold">
+        {formatDate(date)} <span className="font-normal text-muted">· {entries.length ? countLabel(kind, entries.length) : "nothing logged"}</span>
+      </p>
+      {entries.length > 0 && (
+        <ul className="mt-2 space-y-1.5">
+          {entries.slice(0, TOOLTIP_MAX_ITEMS).map((e) => (
+            <li key={e.id} className="flex items-center gap-2.5">
+              <span className="relative h-9 w-6 shrink-0 overflow-hidden rounded-sm bg-surface-3">
+                {e.posterPath && <Image src={tmdbImage(e.posterPath, "w92")!} alt="" fill sizes="24px" className="object-cover" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-medium">{e.title}</span>
+                {kind === "tv" && <span className="block text-[11px] text-dim">{seasonLabel(e.seasonNumber)}</span>}
+              </span>
+              {e.rating !== null && <span className="shrink-0 text-xs font-bold text-gold">{e.rating}/10</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {entries.length > TOOLTIP_MAX_ITEMS && <p className="mt-1.5 text-[11px] text-dim">+{entries.length - TOOLTIP_MAX_ITEMS} more</p>}
+      {entries.length > 0 && <p className="mt-2 text-[10px] text-dim">Click for details</p>}
+    </div>
+  );
 }
 
 function Legend({ kind }: { kind: Kind }) {
@@ -37,6 +94,7 @@ function YearGrid({
   kind,
   selected,
   onSelect,
+  onHover,
   compact = false,
 }: {
   year: number;
@@ -44,6 +102,7 @@ function YearGrid({
   kind: Kind;
   selected: string | null;
   onSelect: (date: string) => void;
+  onHover: HoverHandler;
   compact?: boolean;
 }) {
   const columns = weekColumns(`${year}-01-01`, `${year}-12-31`);
@@ -86,7 +145,8 @@ function YearGrid({
                       key={date}
                       type="button"
                       onClick={() => onSelect(date)}
-                      title={`${formatDate(date)}: ${count ? countLabel(kind, count) : "nothing"}`}
+                      aria-label={`${formatDate(date)}: ${count ? countLabel(kind, count) : "nothing logged"}`}
+                      {...hoverProps(date, onHover)}
                       className={cn(
                         "rounded-[3px] transition hover:ring-1 hover:ring-fg/70",
                         cell,
@@ -112,6 +172,7 @@ function MonthGrid({
   kind,
   selected,
   onSelect,
+  onHover,
 }: {
   year: number;
   month: number;
@@ -119,6 +180,7 @@ function MonthGrid({
   kind: Kind;
   selected: string | null;
   onSelect: (date: string) => void;
+  onHover: HoverHandler;
 }) {
   const columns = monthWeeks(year, month);
   // Each week is Sun→Sat, so flattening the weeks fills a 7-column grid row by row.
@@ -139,6 +201,8 @@ function MonthGrid({
               key={date}
               type="button"
               onClick={() => onSelect(date)}
+              aria-label={`${formatDate(date)}: ${entries.length ? countLabel(kind, entries.length) : "nothing logged"}`}
+              {...hoverProps(date, onHover)}
               className={cn(
                 "group/day relative aspect-[2/3] overflow-hidden rounded-md text-left transition sm:aspect-square",
                 entries.length ? LEVELS[kind][heatLevel(entries.length)] : "bg-surface-2/60",
@@ -208,14 +272,26 @@ export function Heatmap({
   kind: Kind;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ date: string; rect: DOMRect } | null>(null);
   const toggle = (date: string) => setSelected((s) => (s === date ? null : date));
+  const onHover: HoverHandler = (date, el) => setHover(date && el ? { date, rect: el.getBoundingClientRect() } : null);
+
+  // The popup is pinned to the screen, so hide it as soon as anything scrolls.
+  useEffect(() => {
+    if (!hover) return;
+    const hide = () => setHover(null);
+    window.addEventListener("scroll", hide, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", hide, { capture: true });
+  }, [hover]);
   const totalFor = (prefix: string) =>
     Object.entries(days).reduce((sum, [d, list]) => (d.startsWith(prefix) ? sum + list.length : sum), 0);
 
   return (
     <div>
-      {view === "year" && <YearGrid year={year} days={days} kind={kind} selected={selected} onSelect={toggle} />}
-      {view === "month" && <MonthGrid year={year} month={month} days={days} kind={kind} selected={selected} onSelect={toggle} />}
+      {view === "year" && <YearGrid year={year} days={days} kind={kind} selected={selected} onSelect={toggle} onHover={onHover} />}
+      {view === "month" && (
+        <MonthGrid year={year} month={month} days={days} kind={kind} selected={selected} onSelect={toggle} onHover={onHover} />
+      )}
       {view === "all" && (
         <div className="space-y-3">
           {years.map((y) => (
@@ -224,7 +300,7 @@ export function Heatmap({
                 <p className="text-sm font-semibold">{y}</p>
                 <p className="text-[11px] text-dim">{countLabel(kind, totalFor(String(y)))}</p>
               </div>
-              <YearGrid year={y} days={days} kind={kind} selected={selected} onSelect={toggle} compact />
+              <YearGrid year={y} days={days} kind={kind} selected={selected} onSelect={toggle} onHover={onHover} compact />
             </div>
           ))}
         </div>
@@ -233,6 +309,7 @@ export function Heatmap({
         <Legend kind={kind} />
       </div>
       {selected && <DayPanel date={selected} days={days} kind={kind} onClose={() => setSelected(null)} />}
+      {hover && <DayTooltip date={hover.date} rect={hover.rect} days={days} kind={kind} />}
     </div>
   );
 }
