@@ -69,6 +69,11 @@ export const titles = pgTable(
     imdbId: text("imdb_id"),
     voteAverage: real("vote_average"),
     seasons: jsonb("seasons").$type<SeasonInfo[]>().notNull().default([]),
+    // The film series it belongs to (e.g. "Harry Potter Collection"), so stats can count a series once.
+    collectionId: integer("collection_id"),
+    collectionName: text("collection_name"),
+    // False for titles cached before series info was stored; they get backfilled.
+    collectionChecked: boolean("collection_checked").notNull().default(false),
     refreshedAt: timestamp("refreshed_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("titles_tmdb_idx").on(t.tmdbId, t.mediaType)],

@@ -192,6 +192,21 @@ export async function searchMovies(query: string, year: number | null): Promise<
   }));
 }
 
+export type TvSearchHit = { id: number; name: string; originalName: string; year: number | null };
+
+/** TV-only search. Used to match imported Netflix shows. */
+export async function searchTv(query: string): Promise<TvSearchHit[]> {
+  "use cache";
+  cacheLife("days");
+  const data = await tmdb<Paged<RawItem & { original_name?: string }>>("/search/tv", { query, include_adult: false });
+  return data.results.slice(0, 10).map((r) => ({
+    id: r.id,
+    name: r.name ?? "",
+    originalName: r.original_name ?? "",
+    year: r.first_air_date ? Number(r.first_air_date.slice(0, 4)) : null,
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Lookups for the Movies / TV filter sidebar
 // ---------------------------------------------------------------------------

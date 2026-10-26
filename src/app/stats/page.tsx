@@ -2,13 +2,18 @@ import { ChevronLeft, ChevronRight, Flame, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { after } from "next/server";
 import { Suspense, type ReactNode } from "react";
 import { NoOwnerNotice, PageHeader, PageSkeleton, PrivateNotice } from "@/components/page";
 import { Heatmap } from "@/components/stats/heatmap";
+import { UndatedToggle } from "@/components/stats/undated-toggle";
+import { getDb } from "@/db";
 import { getProfileAccess } from "@/lib/auth";
 import { cn, plural, titleHref, tmdbImage } from "@/lib/format";
 import { getCreditsFor, getViewings, summarize, type ViewingWithTitle } from "@/lib/library";
 import { computeStreaks, countBy, MONTHS, MONTHS_LONG, toDateString, type DayMap } from "@/lib/stats";
+import { backfillCollections, countUncheckedCollections } from "@/lib/title-cache";
 
 export const metadata: Metadata = { title: "Stats" };
 
@@ -135,7 +140,16 @@ function Columns({ items }: { items: { label: string; value: number; href?: stri
   );
 }
 
-type PersonStat = { id: number; name: string; profilePath: string | null; count: number; avg: number | null };
+type PersonStat = {
+  id: number;
+  name: string;
+  profilePath: string | null;
+  /** Titles, with each film series counted once for actors. */
+  count: number;
+  /** Individual films (only differs from count for actors in series). */
+  films: number;
+  avg: number | null;
+};
 
 function PeopleList({ people, empty }: { people: PersonStat[]; empty: string }) {
   if (!people.length) return <p className="text-sm text-dim">{empty}</p>;
@@ -152,6 +166,7 @@ function PeopleList({ people, empty }: { people: PersonStat[]; empty: string }) 
               <span className="block truncate text-sm font-medium group-hover/p:underline">{p.name}</span>
               <span className="block text-xs text-dim">
                 {plural(p.count, "title")}
+                {p.films > p.count && <> ({p.films} films)</>}
                 {p.avg !== null && <> · avg <span className="text-gold">{p.avg.toFixed(1)}</span></>}
               </span>
             </span>
@@ -176,7 +191,11 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
   const month = Math.min(12, Math.max(1, Number(params.month) || currentMonth));
   const prefix = view === "year" ? `${year}` : view === "month" ? `${year}-${String(month).padStart(2, "0")}` : "";
 
-  const rows = await getViewings(access.owner.id);
+  // "Include entries with no date": the URL wins, otherwise your last choice (remembered in a cookie).
+  const datedOnly = typeof params.dated === "string" ? params.dated === "1" : (await cookies()).get("stats_dated")?.value === "1";
+  const allRows = await getViewings(access.owner.id);
+  const undatedCount = allRows.filter((r) => !r.viewing.watchedOn).length;
+  const rows = datedOnly ? allRows.filter((r) => r.viewing.watchedOn) : allRows;
   const movies = rows.filter((r) => r.title.mediaType === "movie");
   const tv = rows.filter((r) => r.title.mediaType === "tv");
   const inPeriod = (r: ViewingWithTitle) => (view === "all" ? true : Boolean(r.viewing.watchedOn?.startsWith(prefix)));
@@ -248,6 +267,9 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
     .slice(0, 6)
     .map(([w, n]) => ({ label: String(w), value: n, href: diary({ type: "movie", where: String(w) }) }));
   const credits = await getCreditsFor(periodTitleIds, ["director", "cast"]);
+  // For actors, a film series (TMDB collection: all Harry Potter films, all Avengers films…) counts once.
+  const seriesOf = new Map(periodTitles.map((t) => [t.id, t.collectionId ? `series-${t.collectionId}` : `title-${t.id}`]));
+  const average = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : null);
   const rank = (role: "director" | "cast"): PersonStat[] => {
     const people = new Map<number, { name: string; profilePath: string | null; titles: Set<number> }>();
     for (const c of credits) {
@@ -258,14 +280,15 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
     }
     return [...people.entries()]
       .map(([id, p]) => {
-        const ratings = [...p.titles].map((t) => titleRating.get(t)).filter((r): r is number => r != null);
-        return {
-          id,
-          name: p.name,
-          profilePath: p.profilePath,
-          count: p.titles.size,
-          avg: ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null,
-        };
+        const groups = new Map<string, number[]>();
+        for (const t of p.titles) {
+          const key = role === "cast" ? seriesOf.get(t)! : `title-${t}`;
+          const rating = titleRating.get(t);
+          groups.set(key, [...(groups.get(key) ?? []), ...(rating != null ? [rating] : [])]);
+        }
+        // Average per title/series, so a long series doesn't dominate the average either.
+        const perGroup = [...groups.values()].map(average).filter((a): a is number => a !== null);
+        return { id, name: p.name, profilePath: p.profilePath, count: groups.size, films: p.titles.size, avg: average(perGroup) };
       })
       .filter((p) => p.count > 1 || periodTitleIds.length < 15)
       .sort((a, b) => b.count - a.count || (b.avg ?? 0) - (a.avg ?? 0))
@@ -273,6 +296,11 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
   };
   const directors = rank("director");
   const actors = rank("cast");
+
+  // Movies cached before series info was stored get it filled in after this page is sent.
+  const db = await getDb();
+  const unsorted = await countUncheckedCollections(db);
+  if (unsorted > 0) after(() => backfillCollections(db));
 
   const prev = view === "month" ? (month === 1 ? [year - 1, 12] : [year, month - 1]) : [year - 1, month];
   const next = view === "month" ? (month === 12 ? [year + 1, 1] : [year, month + 1]) : [year + 1, month];
@@ -307,6 +335,7 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
       </PageHeader>
 
       <div className="space-y-6 px-4 sm:px-8 lg:px-12">
+        {view === "all" && undatedCount > 0 && <UndatedToggle include={!datedOnly} count={undatedCount} />}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <Stat label="Movies watched" value={periodMovies.length} sub={`${plural(uniqueMovies, "unique film")}`} href={diary({ type: "movie" })} />
           <Stat
@@ -354,6 +383,10 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
             <PeopleList people={directors} empty="Log a few more movies to see your favorite directors." />
           </Card>
           <Card title="Most-watched actors">
+            <p className="-mt-2 mb-4 text-xs text-dim">
+              Each film series counts once: all the Harry Potter films are 1 title, all the Avengers films are 1, and so on.
+              {unsorted > 0 && ` Still sorting ${unsorted} movies into series. Refresh in a minute.`}
+            </p>
             <PeopleList people={actors} empty="Log a few more movies to see who shows up most." />
           </Card>
           <Card title={<>Your ratings <span className="normal-case tracking-normal text-dim">· movies</span></>}>

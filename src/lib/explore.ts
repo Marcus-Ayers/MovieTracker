@@ -121,6 +121,8 @@ async function becauseYouWatched(movies: LibraryEntry[], unseen: (i: MediaItem[]
 /** Unseen films from directors and actors who show up a lot in your library. */
 async function peopleRows(movies: LibraryEntry[], rand: () => number, unseen: (i: MediaItem[]) => MediaItem[]): Promise<ExploreRow[]> {
   const ratingOf = new Map(movies.map((e) => [e.title.id, e.rating]));
+  // For actors, a film series counts once (all Harry Potter films = 1), same as on the Stats page.
+  const seriesOf = new Map(movies.map((e) => [e.title.id, e.title.collectionId ? `series-${e.title.collectionId}` : `title-${e.title.id}`]));
   const credits = await getCreditsFor(movies.map((e) => e.title.id), ["director", "cast"]);
   const tally = (role: "director" | "cast", maxOrder: number) => {
     const people = new Map<number, { name: string; titles: Set<number> }>();
@@ -133,7 +135,8 @@ async function peopleRows(movies: LibraryEntry[], rand: () => number, unseen: (i
     return [...people.entries()].map(([id, p]) => {
       const ratings = [...p.titles].map((t) => ratingOf.get(t)).filter((r): r is number => r != null);
       const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
-      return { id, name: p.name, count: p.titles.size, avg };
+      const count = role === "cast" ? new Set([...p.titles].map((t) => seriesOf.get(t))).size : p.titles.size;
+      return { id, name: p.name, count, films: p.titles.size, avg };
     });
   };
   const rank = (p: { count: number; avg: number | null }) => (p.avg ?? 6) * 2 + p.count;
@@ -141,7 +144,7 @@ async function peopleRows(movies: LibraryEntry[], rand: () => number, unseen: (i
   const actors = shuffle(tally("cast", 3).filter((p) => p.count >= 3).sort((a, b) => rank(b) - rank(a)).slice(0, 8), rand).slice(0, 1);
 
   const released = today();
-  const build = async (p: { id: number; name: string; count: number; avg: number | null }, kind: "director" | "actor") => {
+  const build = async (p: { id: number; name: string; films: number; avg: number | null }, kind: "director" | "actor") => {
     const person = await getPerson(p.id);
     const credits = (kind === "director" ? person.directing : person.acting).filter(
       (c) => c.mediaType === "movie" && c.date && c.date <= released && c.voteCount >= 100,
@@ -151,7 +154,7 @@ async function peopleRows(movies: LibraryEntry[], rand: () => number, unseen: (i
     return {
       key: `${kind}-${p.id}`,
       title: kind === "director" ? `More from ${p.name}` : `${p.name} movies you haven't seen`,
-      subtitle: `You've seen ${p.count} of their films${avg}`,
+      subtitle: `You've seen ${p.films} of their films${avg}`,
       items,
       href: `/person/${p.id}`,
     } satisfies ExploreRow;

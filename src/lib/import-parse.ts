@@ -3,7 +3,7 @@ import { strFromU8, unzipSync } from "fflate";
 import Papa from "papaparse";
 import type { MediaType } from "./format";
 
-export type ImportSource = "letterboxd" | "tmdb" | "plex";
+export type ImportSource = "letterboxd" | "tmdb" | "plex" | "netflix";
 
 export type ImportRow = {
   source: ImportSource;
@@ -25,7 +25,10 @@ export type ImportRow = {
   watchedWhere: string | null;
 };
 
-export type ParseResult = { rows: ImportRow[]; notes: string[] };
+/** A season's worth of Netflix episodes; matched to TMDB on the server (needs a TV search + episode counts). */
+export type NetflixSeason = { show: string; season: number; episodes: number; lastWatched: string };
+
+export type ParseResult = { rows: ImportRow[]; notes: string[]; netflixSeasons?: NetflixSeason[] };
 
 type CsvRow = Record<string, string>;
 
@@ -223,6 +226,86 @@ function parseTmdb(rows: CsvRow[], headers: string[], fileName: string): ParseRe
 }
 
 // ---------------------------------------------------------------------------
+// Netflix (Account → Profile → Viewing activity → Download all)
+// ---------------------------------------------------------------------------
+
+/** "Show: Season 2: Episode name", "Show: Limited Series: Episode name", "Show: Part 3: …", etc. */
+const NETFLIX_EPISODE = /^(.+?): (?:(?:Season|Series|Volume|Part|Book|Collection) (\d+)|Limited Series|Miniseries|Mini-Series): (.+)$/i;
+
+const isNetflixFile = (headers: string[]) => {
+  const names = headers.map(norm);
+  return names.includes("title") && names.includes("date") && !names.includes("name") && !names.includes("letterboxduri");
+};
+
+/** Netflix dates are M/D/YY in the US (D/M/YY elsewhere, detected when the first number is over 12). */
+function netflixDate(value: string) {
+  const m = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (!m) return toDate(value);
+  let [month, day] = [Number(m[1]), Number(m[2])];
+  if (month > 12) [month, day] = [day, month];
+  const year = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function parseNetflix(rows: CsvRow[]): ParseResult {
+  const movies = new Map<string, { title: string; dates: Set<string> }>();
+  const seasons = new Map<string, { show: string; season: number; episodes: Set<string>; last: string }>();
+  let episodePlays = 0;
+  for (const r of rows) {
+    const title = pick(r, ["Title"]);
+    const date = netflixDate(pick(r, ["Date"]));
+    if (!title || !date) continue;
+    const ep = title.match(NETFLIX_EPISODE);
+    if (ep) {
+      episodePlays++;
+      const [, show, n, episode] = ep;
+      const season = n ? Number(n) : 1;
+      const key = `${show.toLowerCase()}|${season}`;
+      const s = seasons.get(key) ?? { show, season, episodes: new Set<string>(), last: date };
+      s.episodes.add(episode.toLowerCase());
+      if (date > s.last) s.last = date;
+      seasons.set(key, s);
+    } else {
+      const key = title.toLowerCase();
+      const m = movies.get(key) ?? { title, dates: new Set<string>() };
+      m.dates.add(date);
+      movies.set(key, m);
+    }
+  }
+
+  const out: ImportRow[] = [];
+  for (const { title, dates } of movies.values()) {
+    [...dates].sort().forEach((date, i) =>
+      out.push({
+        source: "netflix",
+        key: `netflix:movie:${title.toLowerCase()}:${date}`,
+        mediaType: "movie",
+        tmdbId: null,
+        title,
+        year: null,
+        watchedOn: date,
+        seasonNumber: null,
+        rating: null,
+        rewatch: i > 0,
+        liked: false,
+        review: null,
+        tags: [],
+        watchedWhere: "Netflix",
+      }),
+    );
+  }
+  const shows = new Set([...seasons.values()].map((s) => s.show.toLowerCase())).size;
+  return {
+    rows: out,
+    netflixSeasons: [...seasons.values()].map((s) => ({ show: s.show, season: s.season, episodes: s.episodes.size, lastWatched: s.last })),
+    notes: [
+      `Netflix: ${out.length.toLocaleString()} movie plays (anything that isn't an episode — specials and docs may need a look), ` +
+        `${episodePlays.toLocaleString()} episode plays across ${shows.toLocaleString()} shows`,
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -247,6 +330,10 @@ export async function parseImportFiles(files: File[]): Promise<ParseResult> {
       results.push(parseTmdb(rows, headers, name));
       return;
     }
+    if (isNetflixFile(headers)) {
+      results.push(parseNetflix(rows));
+      return;
+    }
     const kind = letterboxdKind(name);
     if (kind) letterboxd[kind] = [...(letterboxd[kind] ?? []), ...rows];
     else skipped.push(name);
@@ -269,8 +356,8 @@ export async function parseImportFiles(files: File[]): Promise<ParseResult> {
 
   if (letterboxd.diary || letterboxd.reviews || letterboxd.ratings) results.push(parseLetterboxd(letterboxd));
   const notes = results.flatMap((r) => r.notes);
-  if (skipped.length) notes.push(`Ignored: ${skipped.join(", ")} (not a diary, reviews, ratings, or TMDB file)`);
-  return { rows: results.flatMap((r) => r.rows), notes };
+  if (skipped.length) notes.push(`Ignored: ${skipped.join(", ")} (not a Letterboxd, TMDB, or Netflix file)`);
+  return { rows: results.flatMap((r) => r.rows), notes, netflixSeasons: results.flatMap((r) => r.netflixSeasons ?? []) };
 }
 
 /**

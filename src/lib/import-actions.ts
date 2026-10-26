@@ -5,7 +5,8 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import { requireUser } from "./auth";
 import { getImportStatuses, mapLimit, saveImportRows, type ImportStatus, type SaveResult } from "./import-save";
-import { searchMovies, type MovieSearchHit } from "./tmdb";
+import type { ImportRow } from "./import-parse";
+import { getTvDetails, searchMovies, searchTv, type MovieSearchHit } from "./tmdb";
 
 export type ImportMatch = { tmdbId: number; title: string; year: number | null; posterPath: string | null };
 export type MatchConfidence = "exact" | "check" | "none";
@@ -53,6 +54,72 @@ export async function matchFilms(films: { title: string; year: number | null }[]
       return { match: null, confidence: "none" };
     }
   });
+}
+
+const netflixInput = z
+  .array(
+    z.object({
+      show: z.string().min(1).max(300),
+      season: z.number().int().min(0).max(200),
+      episodes: z.number().int().min(1),
+      lastWatched: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    }),
+  )
+  .max(300);
+
+/**
+ * Netflix seasons → diary rows. Finds each show on TMDB and keeps only seasons you watched every episode of
+ * (dated when you watched the last one) — same rule as Plex.
+ */
+export async function matchNetflixSeasons(seasons: z.infer<typeof netflixInput>) {
+  await requireUser();
+  const input = netflixInput.parse(seasons);
+  const shows = [...new Set(input.map((s) => s.show))];
+  const showIds = new Map<string, number | null>();
+  await mapLimit(shows, 6, async (show) => {
+    try {
+      const hits = await searchTv(show);
+      const wanted = normTitle(show);
+      const hit = hits.find((h) => normTitle(h.name) === wanted || normTitle(h.originalName) === wanted) ?? hits[0];
+      showIds.set(show, hit?.id ?? null);
+    } catch {
+      showIds.set(show, null);
+    }
+  });
+
+  const rows: ImportRow[] = [];
+  let inProgress = 0;
+  let unmatched = 0;
+  await mapLimit(input, 6, async (s) => {
+    const tmdbId = showIds.get(s.show);
+    if (!tmdbId) {
+      unmatched++;
+      return;
+    }
+    const details = await getTvDetails(tmdbId).catch(() => null);
+    const episodeCount = details?.seasons.find((x) => x.number === s.season)?.episodeCount ?? 0;
+    if (!details || !episodeCount || s.episodes < episodeCount) {
+      inProgress++;
+      return;
+    }
+    rows.push({
+      source: "netflix",
+      key: `netflix:tv:${tmdbId}:s${s.season}`,
+      mediaType: "tv",
+      tmdbId,
+      title: details.title,
+      year: details.year,
+      watchedOn: s.lastWatched,
+      seasonNumber: s.season,
+      rating: null,
+      rewatch: false,
+      liked: false,
+      review: null,
+      tags: [],
+      watchedWhere: "Netflix",
+    });
+  });
+  return { rows, completed: rows.length, inProgress, unmatched };
 }
 
 const statusInput = z

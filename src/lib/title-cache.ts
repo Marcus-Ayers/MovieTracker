@@ -56,6 +56,9 @@ export async function ensureTitle(db: DB, tmdbId: number, mediaType: MediaType, 
     imdbId: d.imdbId,
     voteAverage: d.voteAverage,
     seasons: d.seasons,
+    collectionId: d.collection?.id ?? null,
+    collectionName: d.collection?.name ?? null,
+    collectionChecked: true,
     refreshedAt: new Date(),
   };
   const [row] = await db
@@ -95,4 +98,45 @@ export async function ensureTitle(db: DB, tmdbId: number, mediaType: MediaType, 
     );
   }
   return row.id;
+}
+
+let backfilling = false;
+
+/** Titles cached before series info was stored: re-pull them (in the background) so actor stats can group series. */
+export async function backfillCollections(db: DB, limit = 400) {
+  if (backfilling) return { updated: 0 };
+  backfilling = true;
+  try {
+    const pending = await db
+      .select({ tmdbId: titles.tmdbId })
+      .from(titles)
+      .where(and(eq(titles.mediaType, "movie"), eq(titles.collectionChecked, false)))
+      .limit(limit);
+    let updated = 0;
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: 6 }, async () => {
+        while (next < pending.length) {
+          const { tmdbId } = pending[next++];
+          try {
+            await ensureTitle(db, tmdbId, "movie", { force: true });
+            updated++;
+          } catch {
+            // Try again next time.
+          }
+        }
+      }),
+    );
+    return { updated };
+  } finally {
+    backfilling = false;
+  }
+}
+
+export async function countUncheckedCollections(db: DB) {
+  const rows = await db
+    .select({ tmdbId: titles.tmdbId })
+    .from(titles)
+    .where(and(eq(titles.mediaType, "movie"), eq(titles.collectionChecked, false)));
+  return rows.length;
 }

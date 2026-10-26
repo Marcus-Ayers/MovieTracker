@@ -10,6 +10,7 @@ import {
   commitImport,
   finishImport,
   matchFilms,
+  matchNetflixSeasons,
   type CommitResult,
   type ImportMatch,
   type ImportStatus,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/import-actions";
 import { parseImportFiles, pickDateFills, type ImportRow, type ParseResult } from "@/lib/import-parse";
 import { getPlexImportRows } from "@/lib/plex-actions";
-import { cn, formatDate, seasonLabel, titleHref, tmdbImage } from "@/lib/format";
+import { cn, formatDate, plural, seasonLabel, titleHref, tmdbImage } from "@/lib/format";
 
 type Entry = ImportRow & { match: ImportMatch | null; confidence: MatchConfidence; status: ImportStatus; include: boolean };
 type Stage =
@@ -44,6 +45,7 @@ const SOURCE_CHIP: Record<ImportRow["source"], { label: string; className: strin
   letterboxd: { label: "Letterboxd", className: "bg-[#00e054]/15 text-[#00e054]" },
   tmdb: { label: "TMDB", className: "bg-[#01b4e4]/15 text-[#01b4e4]" },
   plex: { label: "Plex", className: "bg-[#e5a00d]/15 text-[#e5a00d]" },
+  netflix: { label: "Netflix", className: "bg-[#e50914]/15 text-[#ff4d55]" },
 };
 
 const chunk = <T,>(items: T[], size: number) =>
@@ -206,7 +208,30 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
     if (!files.length) return;
     try {
       setStage({ name: "working", label: "Reading your files…", done: 0, total: 1 });
-      await review(await parseImportFiles(files), "Couldn't find any diary entries or ratings in those files.");
+      const parsed = await parseImportFiles(files);
+      // Netflix TV: match shows and keep finished seasons (server side; needs TMDB episode counts).
+      const seasons = parsed.netflixSeasons ?? [];
+      if (seasons.length) {
+        let done = 0;
+        let completed = 0;
+        let inProgress = 0;
+        let unmatched = 0;
+        for (const batch of chunk(seasons, 100)) {
+          setStage({ name: "working", label: "Matching Netflix shows to TMDB…", done, total: seasons.length });
+          const res = await matchNetflixSeasons(batch);
+          parsed.rows.push(...res.rows);
+          completed += res.completed;
+          inProgress += res.inProgress;
+          unmatched += res.unmatched;
+          done += batch.length;
+        }
+        parsed.notes.push(
+          `Netflix TV: ${plural(completed, "finished season")}` +
+            (inProgress ? ` · ${plural(inProgress, "season")} not finished (or split differently on TMDB), skipped` : "") +
+            (unmatched ? ` · ${plural(unmatched, "season")} from shows TMDB couldn't find` : ""),
+        );
+      }
+      await review(parsed, "Couldn't find any diary entries or ratings in those files.");
     } catch (error) {
       console.error(error);
       setStage({ name: "pick", error: "Something went wrong reading those files. Make sure they're the original export files." });
@@ -340,9 +365,9 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
         <div className="mb-3 grid size-10 place-items-center rounded-full bg-gold/15 text-gold">
           <Check className="size-5" />
         </div>
-        <h2 className="text-xl font-bold">Imported {r.imported.toLocaleString()} entries</h2>
+        <h2 className="text-xl font-bold">Imported {plural(r.imported, "entry", "entries")}</h2>
         <p className="mt-1 text-sm text-muted">
-          {r.datesFilled > 0 && `Filled in the date on ${r.datesFilled} existing entries. `}
+          {r.datesFilled > 0 && `Filled in the date on ${plural(r.datesFilled, "existing entry", "existing entries")}. `}
           {r.skipped > 0 && `${r.skipped} were already there and skipped. `}
           {r.failed.length > 0 && `${r.failed.length} couldn't be loaded from TMDB: ${r.failed.slice(0, 5).join(", ")}${r.failed.length > 5 ? "…" : ""}`}
         </p>
@@ -394,7 +419,9 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
         >
           <Upload className="size-8 text-muted" />
           <span className="text-lg font-semibold">Drop your export files here, or click to choose</span>
-          <span className="text-sm text-muted">Letterboxd .zip (or its diary/reviews/ratings CSVs) and/or TMDB ratings CSVs. You can pick several at once.</span>
+          <span className="text-sm text-muted">
+            Letterboxd .zip (or its diary/reviews/ratings CSVs), TMDB ratings CSVs, and Netflix viewing history. You can pick several at once.
+          </span>
         </button>
         <input
           ref={fileInput}
@@ -416,6 +443,14 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
           <div className="rounded-xl border border-line bg-surface p-5">
             <p className="mb-2 font-semibold">From TMDB</p>
             <p className="text-muted">Your profile → Ratings → ⋯ → Export CSV (Movies and TV separately; TMDB emails them). Ratings come in as “date unknown”, rounded to whole numbers.</p>
+          </div>
+          <div className="rounded-xl border border-line bg-surface p-5 sm:col-span-2">
+            <p className="mb-2 font-semibold">From Netflix</p>
+            <p className="text-muted">
+              netflix.com → Account → Profiles → your profile → Viewing activity → <span className="text-fg">Download all</span> (at the bottom). Upload
+              NetflixViewingHistory.csv. Movies come in dated; TV seasons you finished come in dated to the last episode. Netflix doesn&apos;t
+              include release years, so double-check anything flagged.
+            </p>
           </div>
         </div>
       </div>

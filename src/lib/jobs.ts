@@ -2,7 +2,7 @@ import "server-only";
 import { getDb } from "@/db";
 import { syncAllPlex } from "./plex";
 import { backfillRatings, syncImdbRatings } from "./ratings";
-import { refreshStaleTitles } from "./title-cache";
+import { backfillCollections, refreshStaleTitles } from "./title-cache";
 
 /**
  * The nightly maintenance run (Vercel cron → /api/cron/daily, or "Update now" in Settings):
@@ -20,6 +20,7 @@ export async function runDailyJobs({ force = false } = {}) {
   });
   const ratings = await backfillRatings(db);
   const titles = await refreshStaleTitles(db);
+  await backfillCollections(db);
   const plex = await syncAllPlex(db);
   return { imdb, ratings, titles, plex, errors };
 }
