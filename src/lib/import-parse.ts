@@ -3,7 +3,7 @@ import { strFromU8, unzipSync } from "fflate";
 import Papa from "papaparse";
 import type { MediaType } from "./format";
 
-export type ImportSource = "letterboxd" | "tmdb";
+export type ImportSource = "letterboxd" | "tmdb" | "plex";
 
 export type ImportRow = {
   source: ImportSource;
@@ -15,11 +15,14 @@ export type ImportRow = {
   title: string;
   year: number | null;
   watchedOn: string | null;
+  /** TV only: which season the entry covers. */
+  seasonNumber: number | null;
   rating: number | null;
   rewatch: boolean;
   liked: boolean;
   review: string | null;
   tags: string[];
+  watchedWhere: string | null;
 };
 
 export type ParseResult = { rows: ImportRow[]; notes: string[] };
@@ -114,6 +117,8 @@ function parseLetterboxd(files: LetterboxdFiles): ParseResult {
       title,
       year,
       watchedOn: watched,
+      seasonNumber: null,
+      watchedWhere: null,
       rating: starsToTen(pick(r, LB.rating) || (review ? pick(review, LB.rating) : "")),
       rewatch: isYes(pick(r, LB.rewatch) || (review ? pick(review, LB.rewatch) : "")),
       liked: false,
@@ -198,6 +203,8 @@ function parseTmdb(rows: CsvRow[], headers: string[], fileName: string): ParseRe
       year: toYear(pick(r, TMDB.date)),
       // TMDB only knows when you rated it, not when you watched it.
       watchedOn: null,
+      seasonNumber: null,
+      watchedWhere: null,
       // Half points round up (7.5 → 8).
       rating: Math.min(10, Math.max(1, Math.round(raw))),
       rewatch: false,
@@ -264,4 +271,25 @@ export async function parseImportFiles(files: File[]): Promise<ParseResult> {
   const notes = results.flatMap((r) => r.notes);
   if (skipped.length) notes.push(`Ignored: ${skipped.join(", ")} (not a diary, reviews, ratings, or TMDB file)`);
   return { rows: results.flatMap((r) => r.rows), notes };
+}
+
+/**
+ * Which new rows should fill in the date on an existing "date unknown" entry:
+ * the earliest dated movie play for each title that has one.
+ */
+export function pickDateFills<T extends { key: string; mediaType: MediaType; tmdbId: number | null; watchedOn: string | null; seasonNumber: number | null }>(
+  rows: T[],
+  statuses: Record<string, string>,
+  undated: string[],
+) {
+  const undatedSet = new Set(undated);
+  const earliest = new Map<string, T>();
+  for (const r of rows) {
+    if (!r.watchedOn || r.seasonNumber !== null || r.tmdbId === null || statuses[r.key] !== "new") continue;
+    const k = `${r.mediaType}-${r.tmdbId}`;
+    if (!undatedSet.has(k)) continue;
+    const current = earliest.get(k);
+    if (!current || r.watchedOn < current.watchedOn!) earliest.set(k, r);
+  }
+  return new Set([...earliest.values()].map((r) => r.key));
 }

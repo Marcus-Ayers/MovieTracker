@@ -194,6 +194,42 @@ export const jobRuns = pgTable("job_runs", {
   summary: text("summary"),
 });
 
+/** A linked Plex account + the server we read watch history from. The token never leaves the server. */
+export const plexConnections = pgTable("plex_connections", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // Identifies this site to Plex; must stay the same for the token to keep working.
+  clientId: text("client_id").notNull(),
+  authToken: text("auth_token"),
+  pendingPinId: integer("pending_pin_id"),
+  serverName: text("server_name"),
+  serverId: text("server_id"),
+  serverToken: text("server_token"),
+  serverUri: text("server_uri"),
+  // Whose plays count (Plex Home / shared servers have several accounts).
+  accountId: integer("account_id"),
+  accountName: text("account_name"),
+  // For turning play timestamps into calendar dates.
+  timeZone: text("time_zone").notNull().default("UTC"),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  lastSyncSummary: text("last_sync_summary"),
+});
+
+/** Plex library item → TMDB id, so each item is only looked up once. */
+export const plexItems = pgTable(
+  "plex_items",
+  {
+    serverId: text("server_id").notNull(),
+    ratingKey: text("rating_key").notNull(),
+    tmdbId: integer("tmdb_id"),
+    mediaType: mediaTypeEnum("media_type"),
+    title: text("title"),
+    year: integer("year"),
+  },
+  (t) => [primaryKey({ columns: [t.serverId, t.ratingKey] })],
+);
+
 export type User = typeof users.$inferSelect;
 export type Title = typeof titles.$inferSelect;
 export type Viewing = typeof viewings.$inferSelect;

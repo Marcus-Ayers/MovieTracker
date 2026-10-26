@@ -44,11 +44,14 @@ export function TrailerButton({ trailer }: { trailer: Video }) {
 
 export function VideoStrip({ videos }: { videos: Video[] }) {
   const [playing, setPlaying] = useState<Video | null>(null);
-  if (!videos.length) return null;
+  // Videos removed from YouTube have no thumbnail; hide them.
+  const [broken, setBroken] = useState<Set<string>>(new Set());
+  const shown = videos.filter((v) => !broken.has(v.key));
+  if (!shown.length) return null;
   return (
     <>
       <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-        {videos.map((video) => (
+        {shown.map((video) => (
           <button
             key={video.key}
             type="button"
@@ -62,6 +65,7 @@ export function VideoStrip({ videos }: { videos: Video[] }) {
                 fill
                 sizes="256px"
                 className="object-cover transition duration-300 group-hover/video:scale-105"
+                onError={() => setBroken((b) => new Set(b).add(video.key))}
               />
               <div className="absolute inset-0 grid place-items-center bg-black/30 transition group-hover/video:bg-black/10">
                 <span className="grid size-11 place-items-center rounded-full bg-black/60 ring-1 ring-white/40">

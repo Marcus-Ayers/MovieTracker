@@ -210,6 +210,25 @@ export async function getWatchProviders(media: MediaType): Promise<WatchProvider
     .map((p) => ({ id: p.provider_id, name: p.provider_name, logoPath: p.logo_path }));
 }
 
+/** TMDB id for an IMDb (tt…) or TVDB id. Used when a Plex item only carries those. */
+export async function findByExternalId(
+  externalId: string,
+  source: "imdb_id" | "tvdb_id",
+): Promise<{ mediaType: MediaType; tmdbId: number } | null> {
+  "use cache";
+  cacheLife("days");
+  try {
+    const data = await tmdb<{ movie_results: { id: number }[]; tv_results: { id: number }[] }>(`/find/${encodeURIComponent(externalId)}`, {
+      external_source: source,
+    });
+    if (data.movie_results[0]) return { mediaType: "movie", tmdbId: data.movie_results[0].id };
+    if (data.tv_results[0]) return { mediaType: "tv", tmdbId: data.tv_results[0].id };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export type NamedId = { id: number; name: string };
 
 export async function searchKeywords(query: string): Promise<NamedId[]> {

@@ -2,20 +2,40 @@ import { formatDistanceToNow } from "date-fns";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/page";
+import { PlexCard, type PlexCardData } from "@/components/plex-card";
 import { RatingsCard } from "@/components/ratings-card";
 import { SettingsForm } from "@/components/settings-form";
 import { requireUser } from "@/lib/auth";
+import { getDb } from "@/db";
+import { getAccounts, getPlexConnection, serverConn } from "@/lib/plex";
 import { getRatingsStatus } from "@/lib/ratings";
 
 export const metadata: Metadata = { title: "Settings" };
 
+async function loadPlex(userId: number): Promise<PlexCardData> {
+  const conn = await getPlexConnection(await getDb(), userId);
+  const sc = conn && serverConn(conn);
+  if (!conn || !sc) return { connected: false };
+  const accounts = await getAccounts(sc).catch(() => null);
+  return {
+    connected: true,
+    serverName: conn.serverName ?? "Plex",
+    accountId: conn.accountId,
+    accounts: accounts ?? (conn.accountId ? [{ id: conn.accountId, name: conn.accountName ?? "You" }] : []),
+    lastSync: conn.lastSyncedAt ? formatDistanceToNow(conn.lastSyncedAt, { addSuffix: true }) : null,
+    summary: conn.lastSyncSummary,
+    reachable: accounts !== null,
+  };
+}
+
 async function Settings() {
   const user = await requireUser("/settings");
-  const s = await getRatingsStatus(user.id);
+  const [s, plex] = await Promise.all([getRatingsStatus(user.id), loadPlex(user.id)]);
   const ago = (d: Date | null) => (d ? `updated ${formatDistanceToNow(d, { addSuffix: true })}` : "never updated");
   return (
     <div className="max-w-2xl space-y-10 px-4 sm:px-8 lg:px-12">
       <SettingsForm displayName={user.displayName} username={user.username} visibility={user.visibility} hideWatched={user.hideWatched} />
+      <PlexCard data={plex} />
       <RatingsCard
         data={{
           imdbLine: s.imdbTitles ? `${s.imdbTitles.toLocaleString()} titles · ${ago(s.imdbSyncedAt)}` : "Not downloaded yet",

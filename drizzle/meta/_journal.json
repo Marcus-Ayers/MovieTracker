@@ -29,6 +29,13 @@
       "when": 1792974857506,
       "tag": "0003_ratings_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792979248133,
+      "tag": "0004_plex",
+      "breakpoints": true
     }
   ]
 }

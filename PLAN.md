@@ -168,9 +168,17 @@ Derived values:
   - **Discovery rows:** classics you haven't seen, decade + genre roulette, random picks, hidden gems, trending.
   - Personal rows leave out what you've seen. Rows link to matching Movies filters.
 
+- **Plex** (Settings → Plex):
+  - **Connect:** Plex PIN sign-in. The site finds your server and picks a working connection (local, remote, or relay), with an account picker for shared servers.
+  - **"Import Plex history"** goes through the review screen:
+    - Movies: one entry per movie per day played; later plays are rewatches.
+    - TV: completed seasons only, dated when you finished the last episode.
+    - The earliest play of a movie you already have as "date unknown" fills in that entry's date instead of duplicating it.
+  - **After that:** "Sync new plays now" plus the nightly job log new plays unrated.
+
 **Next up:**
 1. Studio/franchise hubs (A24, Ghibli, Pixar…), and a "My services" setting for the streaming filter
 2. Deploy: Vercel + Neon. Set `TMDB_API_KEY`, `OMDB_API_KEY`, `DATABASE_URL`, and `CRON_SECRET` in Vercel.
 3. Custom lists, Recap (year in review), data export
-4. Plex webhooks auto-logging
+4. Plex webhooks for instant logging (optional — nightly sync already covers it)
 5. Tier list / drag-to-rank, table view

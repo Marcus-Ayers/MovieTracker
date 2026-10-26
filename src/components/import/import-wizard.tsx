@@ -15,8 +15,9 @@ import {
   type ImportStatus,
   type MatchConfidence,
 } from "@/lib/import-actions";
-import { parseImportFiles, type ImportRow } from "@/lib/import-parse";
-import { cn, formatDate, titleHref, tmdbImage } from "@/lib/format";
+import { parseImportFiles, pickDateFills, type ImportRow, type ParseResult } from "@/lib/import-parse";
+import { getPlexImportRows } from "@/lib/plex-actions";
+import { cn, formatDate, seasonLabel, titleHref, tmdbImage } from "@/lib/format";
 
 type Entry = ImportRow & { match: ImportMatch | null; confidence: MatchConfidence; status: ImportStatus; include: boolean };
 type Stage =
@@ -33,6 +34,16 @@ const STATUS_LABEL: Record<ImportStatus, string> = {
   "same-day": "Already logged that day",
   "in-library": "Already in your library",
   conflict: "In your Letterboxd import",
+  "fills-date": "Adds a date to your existing entry",
+};
+
+/** Statuses that get imported (everything else is skipped by default). */
+const isActive = (status: ImportStatus) => status === "new" || status === "fills-date";
+
+const SOURCE_CHIP: Record<ImportRow["source"], { label: string; className: string }> = {
+  letterboxd: { label: "Letterboxd", className: "bg-[#00e054]/15 text-[#00e054]" },
+  tmdb: { label: "TMDB", className: "bg-[#01b4e4]/15 text-[#01b4e4]" },
+  plex: { label: "Plex", className: "bg-[#e5a00d]/15 text-[#e5a00d]" },
 };
 
 const chunk = <T,>(items: T[], size: number) =>
@@ -113,7 +124,7 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: (patch: Partial
   const [fixing, setFixing] = useState(false);
   const m = entry.match;
   const differs = m && (m.title.toLowerCase() !== entry.title.toLowerCase() || (entry.year !== null && m.year !== entry.year));
-  const skipped = entry.status !== "new";
+  const skipped = !isActive(entry.status);
 
   return (
     <li className={cn("border-b border-line/60 px-3 py-3 last:border-0", !entry.include && "opacity-55")}>
@@ -143,9 +154,11 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: (patch: Partial
             </p>
           )}
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
-            <span className={cn("rounded px-1.5 py-px font-medium", entry.source === "letterboxd" ? "bg-[#00e054]/15 text-[#00e054]" : "bg-[#01b4e4]/15 text-[#01b4e4]")}>
-              {entry.source === "letterboxd" ? "Letterboxd" : entry.mediaType === "tv" ? "TMDB · TV" : "TMDB"}
+            <span className={cn("rounded px-1.5 py-px font-medium", SOURCE_CHIP[entry.source].className)}>
+              {SOURCE_CHIP[entry.source].label}
+              {entry.mediaType === "tv" && " · TV"}
             </span>
+            {entry.mediaType === "tv" && entry.seasonNumber !== null && <span>{seasonLabel(entry.seasonNumber)}</span>}
             <span>{entry.watchedOn ? formatDate(entry.watchedOn) : "Date unknown"}</span>
             {entry.review && <FileText className="size-3.5" aria-label="Has review" />}
             {entry.rewatch && <Repeat className="size-3.5" aria-label="Rewatch" />}
@@ -154,12 +167,14 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: (patch: Partial
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className={cn("text-sm font-bold tabular-nums", entry.rating ? "text-gold" : "text-dim")}>{entry.rating ? `${entry.rating}/10` : "–"}</span>
-          {skipped ? (
+          {entry.status === "fills-date" ? (
+            <span className="text-[11px] text-gold">{STATUS_LABEL[entry.status]}</span>
+          ) : skipped ? (
             <span className="text-[11px] text-dim">{STATUS_LABEL[entry.status]}</span>
           ) : entry.confidence === "check" ? (
             <span className="text-[11px] text-gold">Check this match</span>
           ) : null}
-          {entry.source === "letterboxd" && !fixing && (
+          {entry.mediaType === "movie" && entry.source !== "tmdb" && !fixing && (
             <button type="button" onClick={() => setFixing(true)} className="text-[11px] text-muted underline-offset-2 hover:text-fg hover:underline">
               {m ? "Wrong movie?" : "Find it"}
             </button>
@@ -172,7 +187,7 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: (patch: Partial
           onCancel={() => setFixing(false)}
           onPick={(match) => {
             setFixing(false);
-            onChange({ match, confidence: "exact", include: entry.status === "new" || entry.status === "conflict" });
+            onChange({ match, confidence: "exact", include: isActive(entry.status) || entry.status === "conflict" });
           }}
         />
       )}
@@ -180,7 +195,7 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: (patch: Partial
   );
 }
 
-export function ImportWizard() {
+export function ImportWizard({ plexConnected = false, highlightPlex = false }: { plexConnected?: boolean; highlightPlex?: boolean }) {
   const [stage, setStage] = useState<Stage>({ name: "pick" });
   const [entries, setEntries] = useState<Entry[]>([]);
   const [notes, setNotes] = useState<string[]>([]);
@@ -191,62 +206,85 @@ export function ImportWizard() {
     if (!files.length) return;
     try {
       setStage({ name: "working", label: "Reading your files…", done: 0, total: 1 });
-      const parsed = await parseImportFiles(files);
-      setNotes(parsed.notes);
-      if (!parsed.rows.length) {
-        setStage({ name: "pick", error: "Couldn't find any diary entries or ratings in those files." });
-        return;
-      }
-
-      // Match Letterboxd films to TMDB (one lookup per unique film).
-      const films = [...new Map(parsed.rows.filter((r) => r.tmdbId === null).map((r) => [filmKey(r.title, r.year), { title: r.title, year: r.year }])).values()];
-      const matches = new Map<string, { match: ImportMatch | null; confidence: MatchConfidence }>();
-      let done = 0;
-      for (const batch of chunk(films, 20)) {
-        setStage({ name: "working", label: "Matching Letterboxd films to TMDB…", done, total: films.length });
-        const results = await matchFilms(batch);
-        batch.forEach((f, i) => matches.set(filmKey(f.title, f.year), results[i]));
-        done += batch.length;
-      }
-
-      let next: Entry[] = parsed.rows.map((row) => {
-        const found =
-          row.tmdbId !== null
-            ? { match: { tmdbId: row.tmdbId, title: row.title, year: row.year, posterPath: null }, confidence: "exact" as const }
-            : (matches.get(filmKey(row.title, row.year)) ?? { match: null, confidence: "none" as const });
-        return { ...row, ...found, status: "new", include: false };
-      });
-
-      // Letterboxd wins: skip TMDB ratings for films that are in the Letterboxd import.
-      const letterboxdIds = new Set(next.filter((e) => e.source === "letterboxd" && e.match).map((e) => e.match!.tmdbId));
-      setStage({ name: "working", label: "Checking what's already in your diary…", done: 0, total: 1 });
-      const withMatch = next.filter((e) => e.match);
-      const statuses: Record<string, ImportStatus> = {};
-      for (const batch of chunk(withMatch, 2000)) {
-        Object.assign(
-          statuses,
-          await checkImportStatus(batch.map((e) => ({ key: e.key, mediaType: e.mediaType, tmdbId: e.match!.tmdbId, watchedOn: e.watchedOn }))),
-        );
-      }
-      next = next.map((e) => {
-        let status = statuses[e.key] ?? "new";
-        if (status === "new" && e.source === "tmdb" && e.mediaType === "movie" && letterboxdIds.has(e.tmdbId!)) status = "conflict";
-        return { ...e, status, include: Boolean(e.match) && status === "new" };
-      });
-      // Dated entries first (newest first), then date-unknown.
-      next.sort((a, b) => (b.watchedOn ?? "").localeCompare(a.watchedOn ?? "") || a.title.localeCompare(b.title));
-      setEntries(next);
-      setFilter("all");
-      setStage({ name: "review" });
+      await review(await parseImportFiles(files), "Couldn't find any diary entries or ratings in those files.");
     } catch (error) {
       console.error(error);
       setStage({ name: "pick", error: "Something went wrong reading those files. Make sure they're the original export files." });
     }
   };
 
+  const startPlex = async () => {
+    try {
+      setStage({ name: "working", label: "Reading your Plex history… (a big library can take a minute)", done: 0, total: 1 });
+      const result = await getPlexImportRows(Intl.DateTimeFormat().resolvedOptions().timeZone);
+      if ("error" in result) {
+        setStage({ name: "pick", error: result.error });
+        return;
+      }
+      await review(result, "Plex didn't return any watch history for that account.");
+    } catch (error) {
+      console.error(error);
+      setStage({ name: "pick", error: "Couldn't read your Plex history. Is the server running?" });
+    }
+  };
+
+  /** Match → check against your diary → show the review list. */
+  const review = async (parsed: ParseResult, emptyMessage: string) => {
+    setNotes(parsed.notes);
+    if (!parsed.rows.length) {
+      setStage({ name: "pick", error: emptyMessage });
+      return;
+    }
+
+    // Match films without a TMDB id yet (Letterboxd, or Plex items deleted from the library): one lookup per film.
+    const films = [...new Map(parsed.rows.filter((r) => r.tmdbId === null).map((r) => [filmKey(r.title, r.year), { title: r.title, year: r.year }])).values()];
+    const matches = new Map<string, { match: ImportMatch | null; confidence: MatchConfidence }>();
+    let done = 0;
+    for (const batch of chunk(films, 20)) {
+      setStage({ name: "working", label: "Matching films to TMDB…", done, total: films.length });
+      const results = await matchFilms(batch);
+      batch.forEach((f, i) => matches.set(filmKey(f.title, f.year), results[i]));
+      done += batch.length;
+    }
+
+    let next: Entry[] = parsed.rows.map((row) => {
+      const found =
+        row.tmdbId !== null
+          ? { match: { tmdbId: row.tmdbId, title: row.title, year: row.year, posterPath: null }, confidence: "exact" as const }
+          : (matches.get(filmKey(row.title, row.year)) ?? { match: null, confidence: "none" as const });
+      return { ...row, ...found, status: "new", include: false };
+    });
+
+    // Letterboxd wins: skip TMDB ratings for films that are in the Letterboxd import.
+    const letterboxdIds = new Set(next.filter((e) => e.source === "letterboxd" && e.match).map((e) => e.match!.tmdbId));
+    setStage({ name: "working", label: "Checking what's already in your diary…", done: 0, total: 1 });
+    const withMatch = next.filter((e) => e.match).map((e) => ({ ...e, tmdbId: e.match!.tmdbId }));
+    const statuses: Record<string, ImportStatus> = {};
+    const undated: string[] = [];
+    for (const batch of chunk(withMatch, 2000)) {
+      const res = await checkImportStatus(
+        batch.map((e) => ({ key: e.key, mediaType: e.mediaType, tmdbId: e.tmdbId, watchedOn: e.watchedOn, seasonNumber: e.seasonNumber })),
+      );
+      Object.assign(statuses, res.statuses);
+      undated.push(...res.undated);
+    }
+    // The earliest dated play of a title you already have as "date unknown" fills in that entry's date.
+    const fills = pickDateFills(withMatch, statuses, undated);
+    next = next.map((e) => {
+      let status: ImportStatus = fills.has(e.key) ? "fills-date" : (statuses[e.key] ?? "new");
+      if (status === "new" && e.source === "tmdb" && e.mediaType === "movie" && letterboxdIds.has(e.tmdbId!)) status = "conflict";
+      return { ...e, status, include: Boolean(e.match) && isActive(status) };
+    });
+    // Dated entries first (newest first), then date-unknown.
+    next.sort((a, b) => (b.watchedOn ?? "").localeCompare(a.watchedOn ?? "") || a.title.localeCompare(b.title));
+    setEntries(next);
+    setFilter("all");
+    setStage({ name: "review" });
+  };
+
   const runImport = async () => {
     const chosen = entries.filter((e) => e.include && e.match);
-    const total: CommitResult = { imported: 0, skipped: 0, failed: [] };
+    const total: CommitResult = { imported: 0, datesFilled: 0, skipped: 0, failed: [] };
     let done = 0;
     setStage({ name: "importing", done, total: chosen.length });
     for (const batch of chunk(chosen, 25)) {
@@ -257,14 +295,18 @@ export function ImportWizard() {
           tmdbId: e.match!.tmdbId,
           title: e.match!.title,
           watchedOn: e.watchedOn,
+          seasonNumber: e.seasonNumber,
           rating: e.rating,
           rewatch: e.rewatch,
           liked: e.liked,
           review: e.review,
           tags: e.tags,
+          watchedWhere: e.watchedWhere,
+          fillUndated: e.status === "fills-date",
         })),
       );
       total.imported += result.imported;
+      total.datesFilled += result.datesFilled;
       total.skipped += result.skipped;
       total.failed.push(...result.failed);
       done += batch.length;
@@ -277,15 +319,15 @@ export function ImportWizard() {
   const counts = useMemo(
     () => ({
       all: entries.length,
-      check: entries.filter((e) => e.confidence === "check" && e.status === "new").length,
+      check: entries.filter((e) => e.confidence === "check" && isActive(e.status)).length,
       missing: entries.filter((e) => !e.match).length,
-      skipped: entries.filter((e) => e.status !== "new").length,
+      skipped: entries.filter((e) => !isActive(e.status)).length,
       selected: entries.filter((e) => e.include).length,
     }),
     [entries],
   );
   const visible = entries.filter((e) =>
-    filter === "check" ? e.confidence === "check" && e.status === "new" : filter === "missing" ? !e.match : filter === "skipped" ? e.status !== "new" : true,
+    filter === "check" ? e.confidence === "check" && isActive(e.status) : filter === "missing" ? !e.match : filter === "skipped" ? !isActive(e.status) : true,
   );
 
   if (stage.name === "working") return <Progress label={stage.label} done={stage.done} total={stage.total} />;
@@ -300,6 +342,7 @@ export function ImportWizard() {
         </div>
         <h2 className="text-xl font-bold">Imported {r.imported.toLocaleString()} entries</h2>
         <p className="mt-1 text-sm text-muted">
+          {r.datesFilled > 0 && `Filled in the date on ${r.datesFilled} existing entries. `}
           {r.skipped > 0 && `${r.skipped} were already there and skipped. `}
           {r.failed.length > 0 && `${r.failed.length} couldn't be loaded from TMDB: ${r.failed.slice(0, 5).join(", ")}${r.failed.length > 5 ? "…" : ""}`}
         </p>
@@ -321,6 +364,24 @@ export function ImportWizard() {
   if (stage.name === "pick") {
     return (
       <div className="max-w-2xl space-y-6">
+        {plexConnected && (
+          <div className={cn("flex flex-wrap items-center gap-4 rounded-xl border bg-surface p-5", highlightPlex ? "border-[#e5a00d]/60" : "border-line")}>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">Import from Plex</p>
+              <p className="text-sm text-muted">
+                Every movie you&apos;ve played (one entry per day) and every season you&apos;ve finished. Plays of movies you already have as
+                &ldquo;date unknown&rdquo; fill in that date instead of adding a duplicate.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void startPlex()}
+              className="rounded bg-[#e5a00d] px-5 py-2.5 text-sm font-semibold text-black hover:bg-[#f0b429]"
+            >
+              Read my Plex history
+            </button>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => fileInput.current?.click()}
