@@ -107,24 +107,33 @@ function YearGrid({
 }) {
   const columns = weekColumns(`${year}-01-01`, `${year}-12-31`);
   const cell = compact ? "size-[9px] sm:size-[10px] xl:size-[13px]" : "size-[11px] sm:size-[13px] xl:size-[18px]";
+  const cellWidth = compact ? "w-[9px] sm:w-[10px] xl:w-[13px]" : "w-[11px] sm:w-[13px] xl:w-[18px]";
   const gap = compact ? "gap-[2px]" : "gap-[3px]";
 
   return (
     <div className="no-scrollbar overflow-x-auto pb-1">
       <div className="inline-flex flex-col">
-        {!compact && (
-          <div className={cn("ml-8 flex", gap)}>
-            {columns.map((week, i) => {
-              const first = week.find((d) => d && d.endsWith("-01")) ?? (i === 0 ? week.find(Boolean) : undefined);
-              return (
-                <span key={i} className={cn("relative text-[11px] text-dim", cell)}>
-                  {first && <span className="absolute -top-0.5 left-0 whitespace-nowrap">{MONTHS[Number(first.slice(5, 7)) - 1]}</span>}
-                </span>
-              );
-            })}
-          </div>
-        )}
-        <div className={cn("flex", !compact && "mt-4")}>
+        {/* Month names over the week where each month starts. */}
+        <div className={cn("flex", gap, !compact && "ml-8")} aria-hidden>
+          {columns.map((week, i) => {
+            const first = week.find((d) => d && d.endsWith("-01")) ?? (i === 0 ? week.find(Boolean) : undefined);
+            return (
+              <span key={i} className={cn("relative", cellWidth, compact ? "h-3" : "h-4")}>
+                {first && (
+                  <span
+                    className={cn(
+                      "absolute left-0 top-0 whitespace-nowrap font-medium leading-none",
+                      compact ? "text-[9px] text-dim xl:text-[10px]" : "text-xs text-muted",
+                    )}
+                  >
+                    {MONTHS[Number(first.slice(5, 7)) - 1]}
+                  </span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+        <div className={cn("flex", compact ? "mt-0.5" : "mt-1")}>
           {!compact && (
             <div className={cn("mr-2 grid w-6 text-[10px] leading-none text-dim", gap)} style={{ gridTemplateRows: "repeat(7, 1fr)" }}>
               {["", "Mon", "", "Wed", "", "Fri", ""].map((d, i) => (
