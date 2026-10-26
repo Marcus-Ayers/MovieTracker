@@ -7,7 +7,7 @@ export default function HomePage() {
   if (!hasTmdbKey()) return <MissingKey />;
   return (
     <Suspense fallback={<BrowseSkeleton />}>
-      <BrowseContent mode="all" />
+      <BrowseContent />
     </Suspense>
   );
 }

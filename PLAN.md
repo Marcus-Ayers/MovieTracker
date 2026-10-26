@@ -152,9 +152,25 @@ Derived values:
   - Rules: TMDB ratings come in as "date unknown"; half points round up; Letterboxd wins when both have a film.
   - Re-running an import skips anything already imported.
 
+- **Ratings data:**
+  - **IMDb:** ratings come from IMDb's free daily file (no API calls).
+  - **Rotten Tomatoes:** scores come from OMDb and are saved permanently. Older films are never re-fetched; this year's and last year's are refreshed occasionally.
+  - **Nightly job** (`/api/cron/daily`, scheduled in `vercel.json`): re-downloads the IMDb file, backfills ~900 RT scores (library/watchlist titles first, then most-voted films), and refreshes TMDB titles older than 90 days.
+  - **Manual run:** Settings → Ratings data → Update now.
+  - **Other users** share the server's OMDb key and the cache. If 1,000/day isn't enough, OMDb's $1/month tier allows 100k/day.
+
+- **Movies / TV pages** (TMDB-style browse):
+  - **Filter sidebar:** sort; genres (click to include, again to exclude); release year plus decade shortcuts; score, votes and runtime sliders; streaming services; certification; language; keywords; people; "hide what I've seen".
+  - **Results:** grid or list (with plot summaries), infinite scroll. Filters live in the URL.
+- **Explore:**
+  - Tonight's pick plus a Shuffle button.
+  - **Personal rows:** Recommended for you (pooled from your 8+ ratings), Because you watched…, more from your top directors and actors, top-rated films in your favorite genres.
+  - **Discovery rows:** classics you haven't seen, decade + genre roulette, random picks, hidden gems, trending.
+  - Personal rows leave out what you've seen. Rows link to matching Movies filters.
+
 **Next up:**
-1. Discover page (full filter panel) + studio/franchise hubs, and "See all" links on rows
-2. Deploy: Vercel + Neon, plus a daily cron that refreshes cached titles
+1. Studio/franchise hubs (A24, Ghibli, Pixar…), and a "My services" setting for the streaming filter
+2. Deploy: Vercel + Neon. Set `TMDB_API_KEY`, `OMDB_API_KEY`, `DATABASE_URL`, and `CRON_SECRET` in Vercel.
 3. Custom lists, Recap (year in review), data export
 4. Plex webhooks auto-logging
 5. Tier list / drag-to-rank, table view

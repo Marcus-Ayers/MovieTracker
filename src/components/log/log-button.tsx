@@ -4,6 +4,7 @@ import { CalendarOff, Heart, Repeat } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useState, type ReactNode } from "react";
 import { saveViewing, type ActionState } from "@/lib/actions";
+import type { LogHistory } from "@/lib/library";
 import { cn, type MediaType, seasonLabel, tmdbImage } from "@/lib/format";
 import { submitTo } from "@/lib/forms";
 import { Modal } from "../ui/modal";
@@ -18,6 +19,8 @@ export type LogTarget = {
   posterPath: string | null;
   seasons: { number: number; name: string }[];
 };
+
+export type { LogHistory };
 
 /** A diary entry, flattened for the client. */
 export type ViewingDraft = {
@@ -34,14 +37,6 @@ export type ViewingDraft = {
   format: string | null;
   watchedWith: string | null;
   tags: string[];
-};
-
-export type LogHistory = {
-  /** Any earlier viewing (or a "seen before" count) of this title. */
-  hasHistory: boolean;
-  /** Seasons already logged (null = whole series). */
-  loggedSeasons: (number | null)[];
-  hasMainReview: boolean;
 };
 
 const WHERE_OPTIONS = [
@@ -122,15 +117,20 @@ function LogForm({
   existing,
   history,
   onDone,
+  onSaved,
 }: {
   target: LogTarget;
   existing?: ViewingDraft;
   history: LogHistory;
   onDone: () => void;
+  onSaved?: (rating: number | null) => void;
 }) {
   const [state, formAction, pending] = useActionState(async (prev: ActionState, formData: FormData) => {
     const result = await saveViewing(prev, formData);
-    if (result.ok) onDone();
+    if (result.ok) {
+      onSaved?.(Number(formData.get("rating")) || null);
+      onDone();
+    }
     return result;
   }, { ok: false });
 
@@ -358,6 +358,30 @@ function LogForm({
   );
 }
 
+/** The log popup on its own, for places that open it themselves (e.g. poster hover buttons). */
+export function LogDialog({
+  open,
+  onClose,
+  target,
+  existing,
+  history,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  target: LogTarget;
+  existing?: ViewingDraft;
+  history: LogHistory;
+  /** Called with the rating you gave (or null) after a successful save. */
+  onSaved?: (rating: number | null) => void;
+}) {
+  return (
+    <Modal open={open} onClose={onClose} label={`Log ${target.title}`}>
+      <LogForm target={target} existing={existing} history={history} onDone={onClose} onSaved={onSaved} />
+    </Modal>
+  );
+}
+
 export function LogButton({
   target,
   existing,
@@ -377,9 +401,7 @@ export function LogButton({
       <button type="button" onClick={() => setOpen(true)} className={className}>
         {children}
       </button>
-      <Modal open={open} onClose={() => setOpen(false)} label={`Log ${target.title}`}>
-        <LogForm target={target} existing={existing} history={history} onDone={() => setOpen(false)} />
-      </Modal>
+      <LogDialog open={open} onClose={() => setOpen(false)} target={target} existing={existing} history={history} />
     </>
   );
 }

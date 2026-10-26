@@ -193,6 +193,70 @@ export async function searchMovies(query: string, year: number | null): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// Lookups for the Movies / TV filter sidebar
+// ---------------------------------------------------------------------------
+
+export type WatchProvider = { id: number; name: string; logoPath: string };
+
+/** Streaming services available in the US, most popular first. */
+export async function getWatchProviders(media: MediaType): Promise<WatchProvider[]> {
+  "use cache";
+  cacheLife("days");
+  const data = await tmdb<{
+    results: { provider_id: number; provider_name: string; logo_path: string; display_priorities?: Record<string, number> }[];
+  }>(`/watch/providers/${media}`, { watch_region: "US" });
+  return data.results
+    .sort((a, b) => (a.display_priorities?.US ?? 999) - (b.display_priorities?.US ?? 999))
+    .map((p) => ({ id: p.provider_id, name: p.provider_name, logoPath: p.logo_path }));
+}
+
+export type NamedId = { id: number; name: string };
+
+export async function searchKeywords(query: string): Promise<NamedId[]> {
+  "use cache";
+  cacheLife("days");
+  const data = await tmdb<Paged<{ id: number; name: string }>>("/search/keyword", { query });
+  return data.results.slice(0, 10);
+}
+
+export async function getKeyword(id: number): Promise<NamedId | null> {
+  "use cache";
+  cacheLife("days");
+  try {
+    return await tmdb<NamedId>(`/keyword/${id}`);
+  } catch {
+    return null;
+  }
+}
+
+export async function searchPeople(query: string): Promise<(Person & { knownFor: string })[]> {
+  "use cache";
+  cacheLife("days");
+  const data = await tmdb<Paged<{ id: number; name: string; profile_path: string | null; known_for_department?: string }>>(
+    "/search/person",
+    { query, include_adult: false },
+  );
+  return data.results.slice(0, 8).map((p) => ({
+    id: p.id,
+    name: p.name,
+    profilePath: p.profile_path,
+    knownFor: p.known_for_department ?? "",
+  }));
+}
+
+/** Just a person's name and photo (much lighter than getPerson). */
+export async function getPersonBasic(id: number): Promise<Person | null> {
+  "use cache";
+  cacheLife("days");
+  try {
+    const p = await tmdb<{ id: number; name: string; profile_path: string | null }>(`/person/${id}`);
+    return { id: p.id, name: p.name, profilePath: p.profile_path };
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Title details
 // ---------------------------------------------------------------------------
 

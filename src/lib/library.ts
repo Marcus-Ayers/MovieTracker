@@ -162,3 +162,20 @@ export async function getCreditsFor(titleIds: number[], roles: ("director" | "wr
     .innerJoin(people, eq(credits.personId, people.tmdbId))
     .where(and(inArray(credits.titleId, titleIds), inArray(credits.role, roles)));
 }
+
+/** What the log popup needs to know about your past viewings (for "Rewatch" and "main review" defaults). */
+export type LogHistory = {
+  /** Any earlier viewing (or a "seen before" count) of this title. */
+  hasHistory: boolean;
+  /** Seasons already logged (null = whole series). */
+  loggedSeasons: (number | null)[];
+  hasMainReview: boolean;
+};
+
+export function historyFor(entry: LibraryEntry | null): LogHistory {
+  return {
+    hasHistory: Boolean(entry && entry.watchCount > 0),
+    loggedSeasons: entry?.viewings.map((v) => v.seasonNumber) ?? [],
+    hasMainReview: Boolean(entry?.viewings.some((v) => v.isMainReview && v.reviewHtml)),
+  };
+}

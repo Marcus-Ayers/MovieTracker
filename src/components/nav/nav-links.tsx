@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/movies", label: "Movies" },
   { href: "/tv", label: "TV Shows" },
+  { href: "/explore", label: "Explore" },
   { href: "/library", label: "Library" },
   { href: "/diary", label: "Diary" },
   { href: "/stats", label: "Stats" },

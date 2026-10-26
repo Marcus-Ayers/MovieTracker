@@ -151,13 +151,47 @@ export const userTitles = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
 );
 
-/** IMDb / Rotten Tomatoes / Metacritic scores from OMDb, saved so hovering doesn't burn the 1,000/day free quota. */
+/**
+ * Rotten Tomatoes / Metacritic (and a fallback IMDb rating) from OMDb, saved permanently.
+ * Older films are never re-fetched; recent releases are refreshed now and then (see lib/ratings.ts).
+ */
 export const externalRatings = pgTable("external_ratings", {
   imdbId: text("imdb_id").primaryKey(),
   imdb: text("imdb"),
   rottenTomatoes: text("rotten_tomatoes"),
   metacritic: text("metacritic"),
+  // Release year from OMDb; decides whether the scores can still change.
+  year: integer("year"),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** IMDb's own daily ratings file (titles with 1,000+ votes). Free IMDb ratings with no API calls. */
+export const imdbRatings = pgTable(
+  "imdb_ratings",
+  {
+    tconst: text("tconst").primaryKey(),
+    rating: real("rating").notNull(),
+    votes: integer("votes").notNull(),
+  },
+  (t) => [index("imdb_ratings_votes_idx").on(t.votes)],
+);
+
+/** Calls per day to rate-limited services (OMDb: 1,000/day on the free tier). */
+export const apiUsage = pgTable(
+  "api_usage",
+  {
+    day: date("day").notNull(),
+    service: text("service").notNull(),
+    calls: integer("calls").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.service] })],
+);
+
+/** When each background job last ran, and what it did. */
+export const jobRuns = pgTable("job_runs", {
+  name: text("name").primaryKey(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
+  summary: text("summary"),
 });
 
 export type User = typeof users.$inferSelect;

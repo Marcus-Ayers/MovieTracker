@@ -250,6 +250,15 @@ export async function adjustPriorWatchCount(tmdbId: number, mediaType: MediaType
   refreshEverything();
 }
 
+/** Explicit add/remove (used by poster hover buttons, which already know the current state). */
+export async function setWatchlist(tmdbId: number, mediaType: MediaType, on: boolean) {
+  const user = await requireUser();
+  const db = await getDb();
+  const titleId = await ensureTitle(db, tmdbId, mediaType);
+  await upsertUserTitle(db, user.id, titleId, { onWatchlist: on, watchlistedAt: on ? new Date() : null });
+  refreshEverything();
+}
+
 export async function toggleWatchlist(tmdbId: number, mediaType: MediaType) {
   const user = await requireUser();
   const db = await getDb();
@@ -261,4 +270,24 @@ export async function toggleWatchlist(tmdbId: number, mediaType: MediaType) {
   const next = !current?.onWatchlist;
   await upsertUserTitle(db, user.id, titleId, { onWatchlist: next, watchlistedAt: next ? new Date() : null });
   refreshEverything();
+}
+
+// ---------------------------------------------------------------------------
+// Ratings data
+// ---------------------------------------------------------------------------
+
+/** "Update now" in Settings: runs the nightly job immediately. */
+export async function runRatingsUpdate(): Promise<{ message: string }> {
+  await requireUser("/settings");
+  const { runDailyJobs } = await import("./jobs");
+  const result = await runDailyJobs();
+  refreshEverything();
+  const parts: string[] = [];
+  if (result.imdb && !result.imdb.skipped) parts.push(`IMDb ratings loaded for ${result.imdb.stored.toLocaleString()} titles`);
+  parts.push(
+    `${result.ratings.fetched.toLocaleString()} Rotten Tomatoes scores fetched` + (result.ratings.reason ? ` (${result.ratings.reason})` : ""),
+  );
+  if (result.ratings.remaining) parts.push(`${result.ratings.remaining.toLocaleString()} more queued for tomorrow`);
+  if (result.errors.length) parts.push(`Problems: ${result.errors.join("; ")}`);
+  return { message: `${parts.join(". ")}.` };
 }

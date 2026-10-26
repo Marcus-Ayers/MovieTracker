@@ -1,11 +1,31 @@
 import "server-only";
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, lt, sql } from "drizzle-orm";
 import { credits, people, titles, type DB } from "@/db";
 import type { MediaType } from "./format";
 import { getTitleDetails } from "./tmdb";
 
 // TMDB's terms allow caching for up to 6 months; refresh well before that.
 const REFRESH_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
+
+/** Nightly: re-pull the oldest cached titles so nothing gets older than TMDB allows. */
+export async function refreshStaleTitles(db: DB, limit = 150) {
+  const stale = await db
+    .select({ tmdbId: titles.tmdbId, mediaType: titles.mediaType })
+    .from(titles)
+    .where(lt(titles.refreshedAt, new Date(Date.now() - REFRESH_AFTER_MS)))
+    .orderBy(asc(titles.refreshedAt))
+    .limit(limit);
+  let refreshed = 0;
+  for (const t of stale) {
+    try {
+      await ensureTitle(db, t.tmdbId, t.mediaType, { force: true });
+      refreshed++;
+    } catch {
+      // Try again tomorrow.
+    }
+  }
+  return { refreshed };
+}
 
 /**
  * Makes sure a TMDB title (and its directors/writers/cast) is stored locally,

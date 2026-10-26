@@ -16,7 +16,7 @@ import {
   seasonLabel,
   tmdbImage,
 } from "@/lib/format";
-import { getTitleState, type LibraryEntry } from "@/lib/library";
+import { getTitleState, historyFor } from "@/lib/library";
 import { getExternalRatings } from "@/lib/ratings";
 import {
   getCollection,
@@ -26,7 +26,7 @@ import {
   type TitleDetails,
 } from "@/lib/tmdb";
 import { DynamicMarker } from "../dynamic-marker";
-import { LogButton, type LogHistory, type LogTarget, type ViewingDraft } from "../log/log-button";
+import { LogButton, type LogTarget, type ViewingDraft } from "../log/log-button";
 import { MissingKey } from "../missing-key";
 import { MyRatingBadge, PosterCard } from "../media/poster-card";
 import { PosterRow } from "../media/rows";
@@ -84,13 +84,6 @@ const toDraft = (v: Viewing): ViewingDraft => ({
   tags: v.tags,
 });
 
-function historyFor(entry: LibraryEntry | null): LogHistory {
-  return {
-    hasHistory: Boolean(entry && entry.watchCount > 0),
-    loggedSeasons: entry?.viewings.map((v) => v.seasonNumber) ?? [],
-    hasMainReview: Boolean(entry?.viewings.some((v) => v.isMainReview && v.reviewHtml)),
-  };
-}
 
 function PeopleLinks({ people }: { people: Person[] }) {
   return (

@@ -8,11 +8,13 @@ import { cn } from "@/lib/format";
 /** A Netflix-style horizontal row with paging arrows. Cards are passed in as children. */
 export function ScrollRow({
   title,
+  subtitle,
   href,
   children,
   className,
 }: {
   title: ReactNode;
+  subtitle?: string;
   href?: string;
   children: ReactNode;
   className?: string;
@@ -42,16 +44,19 @@ export function ScrollRow({
 
   return (
     <section className={cn("group/row relative", className)}>
-      <div className="mb-3 flex items-baseline gap-3 px-4 sm:px-8 lg:px-12">
-        <h2 className="text-lg font-semibold tracking-tight sm:text-xl">{title}</h2>
-        {href && (
-          <Link
-            href={href}
-            className="text-xs font-medium text-muted opacity-0 transition hover:text-fg group-hover/row:opacity-100"
-          >
-            See all ›
-          </Link>
-        )}
+      <div className="mb-3 px-4 sm:px-8 lg:px-12">
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-lg font-semibold tracking-tight sm:text-xl">{title}</h2>
+          {href && (
+            <Link
+              href={href}
+              className="text-xs font-medium text-muted opacity-0 transition hover:text-fg group-hover/row:opacity-100"
+            >
+              See all ›
+            </Link>
+          )}
+        </div>
+        {subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}
       </div>
       <div className="relative">
         <div
