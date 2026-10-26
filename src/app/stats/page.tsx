@@ -45,33 +45,64 @@ function Card({ title, children, className }: { title: ReactNode; children: Reac
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
-  return (
-    <div className="rounded-xl border border-line bg-surface p-4 sm:p-5">
+function Stat({ label, value, sub, href }: { label: string; value: ReactNode; sub?: ReactNode; href?: string }) {
+  const body = (
+    <>
       <p className="text-xs uppercase tracking-wider text-muted">{label}</p>
       <p className="mt-1 text-3xl font-black tabular-nums tracking-tight">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-dim">{sub}</p>}
-    </div>
+    </>
+  );
+  const className = "rounded-xl border border-line bg-surface p-4 sm:p-5";
+  return href ? (
+    <Link href={href} className={cn(className, "group/stat block transition hover:border-fg/30 hover:bg-surface-2")}>
+      {body}
+    </Link>
+  ) : (
+    <div className={className}>{body}</div>
   );
 }
 
-/** Horizontal bar list. */
-function Bars({ items, color = "bg-accent" }: { items: [string, number][]; color?: string }) {
-  const max = Math.max(1, ...items.map(([, n]) => n));
+type BarItem = { label: string; value: number; href?: string };
+
+/** Horizontal bar list. Rows with an href link to the matching filtered list. */
+function Bars({ items, color = "bg-accent" }: { items: BarItem[]; color?: string }) {
+  const max = Math.max(1, ...items.map((i) => i.value));
   if (!items.length) return <p className="text-sm text-dim">Nothing yet.</p>;
   return (
-    <ul className="space-y-2">
-      {items.map(([label, n]) => (
-        <li key={label} className="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-3 text-sm">
-          <span className="truncate text-muted">{label}</span>
-          <span className="h-2.5 overflow-hidden rounded-full bg-surface-3">
-            <span className={cn("block h-full rounded-full", color)} style={{ width: `${(n / max) * 100}%` }} />
-          </span>
-          <span className="text-right tabular-nums">{n}</span>
-        </li>
-      ))}
+    <ul className="-mx-2 space-y-0.5">
+      {items.map((item) => {
+        const row = (
+          <>
+            <span className="truncate text-muted group-hover/bar:text-fg">{item.label}</span>
+            <span className="h-2.5 overflow-hidden rounded-full bg-surface-3">
+              <span className={cn("block h-full rounded-full", color)} style={{ width: `${(item.value / max) * 100}%` }} />
+            </span>
+            <span className="text-right tabular-nums">{item.value}</span>
+          </>
+        );
+        const className = "group/bar grid grid-cols-[7rem_1fr_2.5rem] items-center gap-3 rounded-md px-2 py-1 text-sm";
+        return (
+          <li key={item.label}>
+            {item.href && item.value > 0 ? (
+              <Link href={item.href} className={cn(className, "transition hover:bg-surface-3")}>
+                {row}
+              </Link>
+            ) : (
+              <div className={className}>{row}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
+}
+
+function query(path: string, params: Record<string, string | number | null | undefined>) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== null && v !== undefined && v !== "") q.set(k, String(v));
+  const s = q.toString();
+  return s ? `${path}?${s}` : path;
 }
 
 /** Vertical columns, e.g. movies per month. */
@@ -183,25 +214,39 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
           }))
         : null;
 
-  const ratingDist = Array.from({ length: 10 }, (_, i) => 10 - i).map(
-    (n) => [`${n}`, periodMovies.filter((r) => r.viewing.rating === n).length] as [string, number],
-  );
-  const genres = countBy(
-    periodMovies.flatMap((r) => r.title.genres.map((g) => ({ g: g.name }))),
-    (x) => x.g,
-  ).slice(0, 8) as [string, number][];
-  const decades = countBy(periodMovies, (r) => (r.title.year ? `${Math.floor(r.title.year / 10) * 10}s` : null))
-    .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
-    .slice(0, 8) as [string, number][];
-  const where = countBy(periodMovies, (r) => r.viewing.watchedWhere).slice(0, 6) as [string, number][];
-
-  // Directors & actors across the movies in this period, using your overall rating for each title.
+  // Each title's current rating (latest), so these numbers match the Library they link to.
   const byTitle = new Map<number, ViewingWithTitle[]>();
   for (const r of movies) byTitle.set(r.title.id, [...(byTitle.get(r.title.id) ?? []), r]);
   const titleRating = new Map(
     [...byTitle.entries()].map(([id, list]) => [id, summarize(list[0].title, list.map((x) => x.viewing), 0).rating]),
   );
   const periodTitleIds = [...new Set(periodMovies.map((r) => r.title.id))];
+  const periodTitles = periodTitleIds.map((id) => byTitle.get(id)![0].title);
+
+  // Links into the Library / Diary, filtered to the same period.
+  const watchedParam = view === "all" ? null : prefix;
+  const library = (extra: Record<string, string | number>) => query("/library", { type: "movie", watched: watchedParam, ...extra });
+  const diary = (extra: Record<string, string | number>) =>
+    query("/diary", { year: view === "year" ? year : null, month: view === "month" ? prefix : null, ...extra });
+
+  const ratingDist: BarItem[] = Array.from({ length: 10 }, (_, i) => 10 - i).map((n) => ({
+    label: `${n}/10`,
+    value: periodTitleIds.filter((id) => titleRating.get(id) === n).length,
+    href: library({ r: n, sort: "recent" }),
+  }));
+  const genres: BarItem[] = countBy(
+    periodTitles.flatMap((t) => t.genres.map((g) => g.name)),
+    (g) => g,
+  )
+    .slice(0, 8)
+    .map(([g, n]) => ({ label: String(g), value: n, href: library({ genre: String(g) }) }));
+  const decades: BarItem[] = countBy(periodTitles, (t) => (t.year ? Math.floor(t.year / 10) * 10 : null))
+    .sort((a, b) => Number(b[0]) - Number(a[0]))
+    .slice(0, 8)
+    .map(([d, n]) => ({ label: `${d}s`, value: n, href: library({ decade: d }) }));
+  const where: BarItem[] = countBy(periodMovies, (r) => r.viewing.watchedWhere)
+    .slice(0, 6)
+    .map(([w, n]) => ({ label: String(w), value: n, href: diary({ type: "movie", where: String(w) }) }));
   const credits = await getCreditsFor(periodTitleIds, ["director", "cast"]);
   const rank = (role: "director" | "cast"): PersonStat[] => {
     const people = new Map<number, { name: string; profilePath: string | null; titles: Set<number> }>();
@@ -263,11 +308,21 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
 
       <div className="space-y-6 px-4 sm:px-8 lg:px-12">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-          <Stat label="Movies watched" value={periodMovies.length} sub={`${plural(uniqueMovies, "unique film")}`} />
-          <Stat label="Hours" value={Math.round(minutes / 60).toLocaleString()} sub={`${plural(Math.round(minutes / 60 / 24), "day")} of film`} />
-          <Stat label="Avg rating" value={avgRating !== null ? avgRating.toFixed(1) : "–"} sub={`${plural(rated.length, "rating")}`} />
-          <Stat label="Rewatches" value={rewatches} sub={periodMovies.length ? `${Math.round((rewatches / periodMovies.length) * 100)}% of watches` : undefined} />
-          <Stat label="TV seasons" value={periodTv.length} sub={plural(new Set(periodTv.map((r) => r.title.id)).size, "show")} />
+          <Stat label="Movies watched" value={periodMovies.length} sub={`${plural(uniqueMovies, "unique film")}`} href={diary({ type: "movie" })} />
+          <Stat
+            label="Hours"
+            value={Math.round(minutes / 60).toLocaleString()}
+            sub={`${plural(Math.round(minutes / 60 / 24), "day")} of film`}
+            href={library({ sort: "runtime" })}
+          />
+          <Stat label="Avg rating" value={avgRating !== null ? avgRating.toFixed(1) : "–"} sub={`${plural(rated.length, "rating")}`} href={library({ sort: "rating" })} />
+          <Stat
+            label="Rewatches"
+            value={rewatches}
+            sub={periodMovies.length ? `${Math.round((rewatches / periodMovies.length) * 100)}% of watches` : undefined}
+            href={diary({ type: "movie", rewatch: 1 })}
+          />
+          <Stat label="TV seasons" value={periodTv.length} sub={plural(new Set(periodTv.map((r) => r.title.id)).size, "show")} href={diary({ type: "tv" })} />
           <div className="rounded-xl border border-line bg-surface p-4 sm:p-5">
             <p className="text-xs uppercase tracking-wider text-muted">Streaks</p>
             <p className="mt-2 flex items-center gap-2 text-sm">
@@ -301,16 +356,16 @@ async function Stats({ searchParams }: { searchParams: PageProps<"/stats">["sear
           <Card title="Most-watched actors">
             <PeopleList people={actors} empty="Log a few more movies to see who shows up most." />
           </Card>
-          <Card title="Your ratings">
-            <Bars items={ratingDist.map(([n, c]) => [`${n}/10`, c])} color="bg-gold" />
+          <Card title={<>Your ratings <span className="normal-case tracking-normal text-dim">· movies</span></>}>
+            <Bars items={ratingDist} color="bg-gold" />
           </Card>
-          <Card title="Genres">
+          <Card title={<>Genres <span className="normal-case tracking-normal text-dim">· movies</span></>}>
             <Bars items={genres} />
           </Card>
-          <Card title="Decades">
+          <Card title={<>Decades <span className="normal-case tracking-normal text-dim">· movies</span></>}>
             <Bars items={decades} />
           </Card>
-          <Card title="Where you watched">
+          <Card title={<>Where you watched <span className="normal-case tracking-normal text-dim">· watches</span></>}>
             <Bars items={where} color="bg-tv" />
           </Card>
         </div>

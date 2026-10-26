@@ -1,7 +1,9 @@
-import { Check, Star } from "lucide-react";
+import { Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn, type MediaType, titleHref, tmdbImage } from "@/lib/format";
+import { genreNames } from "@/lib/genres";
+import { PreviewOverlay } from "./preview-overlay";
 
 export type PosterItem = {
   id: number;
@@ -10,7 +12,14 @@ export type PosterItem = {
   year: number | null;
   posterPath: string | null;
   voteAverage?: number | null;
+  /** Genre names (library titles) or TMDB genre ids (browse lists); shown instantly in the hover preview. */
+  genres?: string[];
+  genreIds?: number[];
 };
+
+export function posterGenres(item: PosterItem) {
+  return item.genres ?? (item.genreIds ? genreNames(item.mediaType, item.genreIds) : undefined);
+}
 
 /** Your rating badge. `rating` undefined = not watched; null = watched but unrated. */
 export function MyRatingBadge({ rating, className }: { rating: number | null; className?: string }) {
@@ -33,6 +42,7 @@ export function PosterCard({
   sizes = "(min-width: 1024px) 200px, 40vw",
   className,
   subtitle,
+  note,
 }: {
   item: PosterItem;
   /** undefined = you haven't watched it */
@@ -40,6 +50,8 @@ export function PosterCard({
   sizes?: string;
   className?: string;
   subtitle?: string;
+  /** Extra line in the hover preview, e.g. "Watched 3×". */
+  note?: string;
 }) {
   const src = tmdbImage(item.posterPath, "w342");
   return (
@@ -60,18 +72,14 @@ export function PosterCard({
         ) : (
           <div className="grid h-full place-items-center p-3 text-center text-sm text-muted">{item.title}</div>
         )}
-        <div className="absolute inset-x-0 bottom-0 translate-y-2 bg-gradient-to-t from-black via-black/80 to-transparent p-3 pt-10 opacity-0 transition duration-300 group-hover/card:translate-y-0 group-hover/card:opacity-100">
-          <p className="line-clamp-2 text-sm font-semibold leading-tight">{item.title}</p>
-          <p className="mt-1 flex items-center gap-2 text-xs text-muted">
-            {item.year && <span>{item.year}</span>}
-            {!!item.voteAverage && (
-              <span className="flex items-center gap-0.5">
-                <Star className="size-3 fill-gold text-gold" />
-                {item.voteAverage.toFixed(1)}
-              </span>
-            )}
-          </p>
-        </div>
+        <PreviewOverlay
+          mediaType={item.mediaType}
+          id={item.id}
+          title={item.title}
+          year={item.year}
+          genres={posterGenres(item)}
+          note={note}
+        />
         {myRating !== undefined && <MyRatingBadge rating={myRating} className="absolute left-2 top-2" />}
       </div>
       {subtitle && <p className="mt-2 truncate text-xs text-muted">{subtitle}</p>}

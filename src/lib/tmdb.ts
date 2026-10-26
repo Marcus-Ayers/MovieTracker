@@ -573,29 +573,3 @@ export async function getPerson(id: number): Promise<PersonDetails> {
     acting: collect(cast, (c) => c.character || null),
   };
 }
-
-// ---------------------------------------------------------------------------
-// OMDb (optional): IMDb, Rotten Tomatoes, and Metacritic scores
-// ---------------------------------------------------------------------------
-
-export type ExternalRatings = { imdb: string | null; rottenTomatoes: string | null; metacritic: string | null };
-
-export async function getExternalRatings(imdbId: string | null): Promise<ExternalRatings | null> {
-  "use cache";
-  cacheLife("days");
-  const key = process.env.OMDB_API_KEY?.trim();
-  if (!key || !imdbId) return null;
-  try {
-    const res = await fetch(`https://www.omdbapi.com/?i=${encodeURIComponent(imdbId)}&apikey=${encodeURIComponent(key)}`);
-    if (!res.ok) return null;
-    const data = (await res.json()) as { imdbRating?: string; Ratings?: { Source: string; Value: string }[] };
-    const find = (source: string) => data.Ratings?.find((r) => r.Source === source)?.Value ?? null;
-    return {
-      imdb: data.imdbRating && data.imdbRating !== "N/A" ? data.imdbRating : null,
-      rottenTomatoes: find("Rotten Tomatoes"),
-      metacritic: find("Metacritic"),
-    };
-  } catch {
-    return null;
-  }
-}

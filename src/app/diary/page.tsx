@@ -1,4 +1,4 @@
-import { FileText, Heart, Repeat } from "lucide-react";
+import { ChevronRight, FileText, Heart, Repeat, X } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,33 +45,75 @@ function Entry({ row }: { row: ViewingWithTitle }) {
   );
 }
 
+const monthLabel = (month: string) => `${MONTHS_LONG[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+
 async function Diary({ searchParams }: { searchParams: PageProps<"/diary">["searchParams"] }) {
   const access = await getProfileAccess();
   if (access.status === "no-owner") return <NoOwnerNotice />;
   if (access.status === "private") return <PrivateNotice name={access.owner.displayName} />;
 
-  const params = await searchParams;
+  const raw = await searchParams;
+  const params: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) if (typeof value === "string" && value) params[key] = value;
+
   const all = (await getViewings(access.owner.id)).sort((a, b) => compareViewings(b.viewing, a.viewing));
   const years = [...new Set(all.map((r) => r.viewing.watchedOn?.slice(0, 4)).filter((y): y is string => Boolean(y)))];
-  const year = typeof params.year === "string" && years.includes(params.year) ? params.year : null;
-  const rows = year ? all.filter((r) => r.viewing.watchedOn?.startsWith(year)) : all;
 
-  // Group by month; undated entries go last.
+  // Filters (the stats page links here with these).
+  const month = /^\d{4}-\d{2}$/.test(params.month ?? "") ? params.month : null;
+  const year = month ? month.slice(0, 4) : years.includes(params.year ?? "") ? params.year : null;
+  const type = params.type === "movie" || params.type === "tv" ? params.type : null;
+  const where = params.where ?? null;
+  const rewatch = params.rewatch === "1";
+  const rows = all.filter(
+    ({ viewing: v, title: t }) =>
+      (!month || v.watchedOn?.startsWith(month)) &&
+      (!year || v.watchedOn?.startsWith(year)) &&
+      (!type || t.mediaType === type) &&
+      (!where || v.watchedWhere?.toLowerCase() === where.toLowerCase()) &&
+      (!rewatch || v.isRewatch),
+  );
+
+  const dated = rows.filter((r) => r.viewing.watchedOn);
+  const undated = rows.filter((r) => !r.viewing.watchedOn);
   const groups = new Map<string, ViewingWithTitle[]>();
-  for (const row of rows) {
-    const key = row.viewing.watchedOn?.slice(0, 7) ?? "unknown";
+  for (const row of dated) {
+    const key = row.viewing.watchedOn!.slice(0, 7);
     groups.set(key, [...(groups.get(key) ?? []), row]);
   }
 
+  const without = (...keys: string[]) => {
+    const next = new URLSearchParams(params);
+    keys.forEach((k) => next.delete(k));
+    const q = next.toString();
+    return q ? `/diary?${q}` : "/diary";
+  };
+  const activeFilters: { label: string; href: string }[] = [
+    month && { label: monthLabel(month), href: without("month") },
+    type && { label: type === "movie" ? "Movies" : "TV", href: without("type") },
+    where && { label: `Watched on ${where}`, href: without("where") },
+    rewatch && { label: "Rewatches", href: without("rewatch") },
+  ].filter((f): f is { label: string; href: string } => Boolean(f));
+
   return (
     <>
-      <PageHeader title={access.isOwner ? "Your diary" : `${access.owner.displayName}'s diary`} subtitle={plural(rows.length, "entry", "entries")} />
-      {years.length > 1 && (
-        <div className="no-scrollbar mb-8 flex gap-2 overflow-x-auto px-4 sm:px-8 lg:px-12">
+      <PageHeader
+        title={access.isOwner ? "Your diary" : `${access.owner.displayName}'s diary`}
+        subtitle={`${plural(dated.length, "entry", "entries")}${undated.length ? ` · ${undated.length} with no date` : ""}`}
+      />
+      {years.length > 0 && (
+        <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto px-4 sm:px-8 lg:px-12">
           {[null, ...years].map((y) => (
             <Link
               key={y ?? "all"}
-              href={y ? `/diary?year=${y}` : "/diary"}
+              href={(() => {
+                const next = new URLSearchParams(params);
+                next.delete("month");
+                if (y) next.set("year", y);
+                else next.delete("year");
+                const q = next.toString();
+                return q ? `/diary?${q}` : "/diary";
+              })()}
               className={cn(
                 "shrink-0 rounded-full border px-3.5 py-1.5 text-sm transition",
                 y === year ? "border-fg bg-fg text-bg" : "border-line text-muted hover:text-fg",
@@ -82,14 +124,25 @@ async function Diary({ searchParams }: { searchParams: PageProps<"/diary">["sear
           ))}
         </div>
       )}
+      {activeFilters.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2 px-4 sm:px-8 lg:px-12">
+          {activeFilters.map((f) => (
+            <Link key={f.label} href={f.href} className="inline-flex items-center gap-1.5 rounded-full bg-surface-3 px-3 py-1 text-sm hover:bg-surface-2">
+              {f.label} <X className="size-3.5 text-muted" />
+            </Link>
+          ))}
+        </div>
+      )}
       {rows.length === 0 ? (
-        <EmptyState title="Your diary is empty">Every time you log a movie or a season, it shows up here.</EmptyState>
+        <EmptyState title={all.length ? "No entries match" : "Your diary is empty"}>
+          {all.length ? "Try removing a filter." : "Every time you log a movie or a season, it shows up here."}
+        </EmptyState>
       ) : (
         <div className="max-w-4xl space-y-10 px-4 sm:px-8 lg:px-12">
-          {[...groups.entries()].map(([month, entries]) => (
-            <section key={month}>
+          {[...groups.entries()].map(([key, entries]) => (
+            <section key={key}>
               <h2 className="sticky top-16 z-10 -mx-2 mb-1 bg-bg/95 px-2 py-2 text-sm font-semibold uppercase tracking-widest text-accent backdrop-blur">
-                {month === "unknown" ? "Date unknown" : `${MONTHS_LONG[Number(month.slice(5)) - 1]} ${month.slice(0, 4)}`}
+                {monthLabel(key)}
                 <span className="ml-2 text-dim">{entries.length}</span>
               </h2>
               <ul>
@@ -99,6 +152,21 @@ async function Diary({ searchParams }: { searchParams: PageProps<"/diary">["sear
               </ul>
             </section>
           ))}
+          {undated.length > 0 && (
+            <details className="group rounded-xl border border-line">
+              <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-3 text-sm text-muted hover:text-fg">
+                <ChevronRight className="size-4 transition group-open:rotate-90" />
+                <span className="font-semibold uppercase tracking-widest">Date unknown</span>
+                <span className="text-dim">{undated.length}</span>
+                <span className="ml-auto text-xs text-dim">Imported ratings and things you didn&apos;t date</span>
+              </summary>
+              <ul className="border-t border-line px-4">
+                {undated.map((row) => (
+                  <Entry key={row.viewing.id} row={row} />
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
       )}
     </>

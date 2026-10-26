@@ -17,9 +17,9 @@ import {
   tmdbImage,
 } from "@/lib/format";
 import { getTitleState, type LibraryEntry } from "@/lib/library";
+import { getExternalRatings } from "@/lib/ratings";
 import {
   getCollection,
-  getExternalRatings,
   getTitleDetails,
   hasTmdbKey,
   type Person,

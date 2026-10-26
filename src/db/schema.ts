@@ -151,6 +151,15 @@ export const userTitles = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
 );
 
+/** IMDb / Rotten Tomatoes / Metacritic scores from OMDb, saved so hovering doesn't burn the 1,000/day free quota. */
+export const externalRatings = pgTable("external_ratings", {
+  imdbId: text("imdb_id").primaryKey(),
+  imdb: text("imdb"),
+  rottenTomatoes: text("rotten_tomatoes"),
+  metacritic: text("metacritic"),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Title = typeof titles.$inferSelect;
 export type Viewing = typeof viewings.$inferSelect;

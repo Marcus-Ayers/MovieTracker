@@ -24,7 +24,7 @@ async function Watchlist() {
           {titles.map((t) => (
             <PosterCard
               key={t.id}
-              item={{ id: t.tmdbId, mediaType: t.mediaType, title: t.title, year: t.year, posterPath: t.posterPath, voteAverage: t.voteAverage }}
+              item={{ id: t.tmdbId, mediaType: t.mediaType, title: t.title, year: t.year, posterPath: t.posterPath, genres: t.genres.map((g) => g.name) }}
               sizes="(min-width: 1280px) 12vw, (min-width: 768px) 18vw, 30vw"
             />
           ))}
