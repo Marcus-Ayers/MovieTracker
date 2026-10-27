@@ -17,8 +17,10 @@ import {
   type MatchConfidence,
 } from "@/lib/import-actions";
 import { parseImportFiles, pickDateFills, type ImportRow, type ParseResult } from "@/lib/import-parse";
+import type { Backup } from "@/lib/backup-format";
 import { getPlexImportRows } from "@/lib/plex-actions";
 import { cn, formatDate, plural, seasonLabel, titleHref, tmdbImage } from "@/lib/format";
+import { readBackup, RestorePanel } from "./restore-panel";
 
 type Entry = ImportRow & { match: ImportMatch | null; confidence: MatchConfidence; status: ImportStatus; include: boolean };
 type Stage =
@@ -26,7 +28,8 @@ type Stage =
   | { name: "working"; label: string; done: number; total: number }
   | { name: "review" }
   | { name: "importing"; done: number; total: number }
-  | { name: "done"; result: CommitResult };
+  | { name: "done"; result: CommitResult }
+  | { name: "restore"; backup: Backup };
 type Filter = "all" | "check" | "missing" | "skipped";
 
 const STATUS_LABEL: Record<ImportStatus, string> = {
@@ -208,6 +211,16 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
     if (!files.length) return;
     try {
       setStage({ name: "working", label: "Reading your files…", done: 0, total: 1 });
+      // A MovieTracker export restores as-is instead of going through matching.
+      const backup = await readBackup(files);
+      if (backup === "invalid") {
+        setStage({ name: "pick", error: "That looks like a MovieTracker backup, but it couldn't be read. Is it the original export file?" });
+        return;
+      }
+      if (backup) {
+        setStage({ name: "restore", backup });
+        return;
+      }
       const parsed = await parseImportFiles(files);
       // Netflix TV: match shows and keep finished seasons (server side; needs TMDB episode counts).
       const seasons = parsed.netflixSeasons ?? [];
@@ -355,6 +368,7 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
     filter === "check" ? e.confidence === "check" && isActive(e.status) : filter === "missing" ? !e.match : filter === "skipped" ? !isActive(e.status) : true,
   );
 
+  if (stage.name === "restore") return <RestorePanel backup={stage.backup} onCancel={() => setStage({ name: "pick" })} />;
   if (stage.name === "working") return <Progress label={stage.label} done={stage.done} total={stage.total} />;
   if (stage.name === "importing") return <Progress label="Importing… keep this tab open." done={stage.done} total={stage.total} />;
 
@@ -420,13 +434,14 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
           <Upload className="size-8 text-muted" />
           <span className="text-lg font-semibold">Drop your export files here, or click to choose</span>
           <span className="text-sm text-muted">
-            Letterboxd .zip (or its diary/reviews/ratings CSVs), TMDB ratings CSVs, and Netflix viewing history. You can pick several at once.
+            Letterboxd .zip (or its diary/reviews/ratings CSVs), TMDB ratings CSVs, Netflix viewing history, or a MovieTracker export to
+            restore. You can pick several at once.
           </span>
         </button>
         <input
           ref={fileInput}
           type="file"
-          accept=".zip,.csv"
+          accept=".zip,.csv,.json"
           multiple
           className="hidden"
           onChange={(e) => {

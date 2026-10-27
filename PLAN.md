@@ -176,6 +176,10 @@ Derived values:
     - The earliest play of a movie you already have as "date unknown" fills in that entry's date instead of duplicating it.
   - **After that:** "Sync new plays now" plus the nightly job log new plays unrated.
 
+- **Export / restore** (Settings → Your data):
+  - **Export:** one ZIP with a full JSON backup (diary, ratings, reviews, watchlist, "seen before" counts, settings) plus Letterboxd-format CSVs.
+  - **Restore:** drop the ZIP on the Import page. It merges into any account and skips anything already there.
+
 **Next up:**
 1. Studio/franchise hubs (A24, Ghibli, Pixar…), and a "My services" setting for the streaming filter
 2. Deploy: Vercel + Neon. Set `TMDB_API_KEY`, `OMDB_API_KEY`, `DATABASE_URL`, and `CRON_SECRET` in Vercel.

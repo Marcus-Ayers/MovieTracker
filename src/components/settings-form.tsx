@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Lock, Upload, Users } from "lucide-react";
+import { Download, Globe, Lock, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import { useActionState } from "react";
 import type { Visibility } from "@/db/schema";
@@ -89,11 +89,19 @@ export function SettingsForm({
       </form>
 
       <section className="rounded-xl border border-line bg-surface p-6">
-        <h2 className="mb-1 font-semibold">Import your history</h2>
-        <p className="mb-4 text-sm text-muted">Bring in your Letterboxd diary and reviews, and your TMDB ratings.</p>
-        <Link href="/settings/import" className="inline-flex items-center gap-2 rounded border border-line px-4 py-2 text-sm hover:border-fg/40">
-          <Upload className="size-4" /> Import from Letterboxd or TMDB
-        </Link>
+        <h2 className="mb-1 font-semibold">Your data</h2>
+        <p className="mb-4 text-sm text-muted">
+          Export everything (diary, ratings, reviews, watchlist, settings) as one ZIP. Drop that ZIP onto the Import page to restore it here or on
+          another account. It also includes Letterboxd-ready CSVs.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <a href="/api/export" download className="inline-flex items-center gap-2 rounded bg-fg px-4 py-2 text-sm font-semibold text-bg hover:bg-fg/85">
+            <Download className="size-4" /> Export everything
+          </a>
+          <Link href="/settings/import" className="inline-flex items-center gap-2 rounded border border-line px-4 py-2 text-sm hover:border-fg/40">
+            <Upload className="size-4" /> Import or restore
+          </Link>
+        </div>
       </section>
 
       <form action={logout}>
