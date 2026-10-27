@@ -1,12 +1,12 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, userTitles, users, viewings, type DB } from "@/db";
-import { requireUser, verifyLegacyPassword } from "./auth";
+import { createUser, isSiteAdmin, requireUser, USERNAME_PATTERN, verifyLegacyPassword } from "./auth";
 import type { MediaType } from "./format";
 import { cleanReview } from "./reviews";
 import { ensureTitle } from "./title-cache";
@@ -53,26 +53,42 @@ export async function linkAccount(_prev: ActionState, formData: FormData): Promi
 
   const data = fields(formData);
   const db = await getDb();
-  const [owner] = await db.select().from(users).orderBy(asc(users.id)).limit(1);
-  if (!owner || owner.clerkId) return { ok: false, error: "There's no account waiting to be linked." };
-  const ok =
-    owner.passwordHash !== null &&
-    (data.username ?? "").trim().toLowerCase() === owner.username &&
-    (await verifyLegacyPassword(data.password ?? "", owner.passwordHash));
+  const [legacy] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.username, (data.username ?? "").trim().toLowerCase()), isNull(users.clerkId), isNotNull(users.passwordHash)));
+  const ok = legacy?.passwordHash != null && (await verifyLegacyPassword(data.password ?? "", legacy.passwordHash));
   if (!ok) {
     const fresh = !attempts || now - attempts.first >= LINK_WINDOW_MS;
     linkAttempts.set(clerkId, fresh ? { count: 1, first: now } : { count: attempts.count + 1, first: attempts.first });
-    return { ok: false, error: "That username and password don't match your existing account." };
+    return { ok: false, error: "That username and password don't match an account waiting to be linked." };
   }
 
-  await db.update(users).set({ clerkId, passwordHash: null }).where(eq(users.id, owner.id));
+  const [already] = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, clerkId));
+  if (already) return { ok: false, error: "This sign-in already has its own account." };
+  await db.update(users).set({ clerkId, passwordHash: null }).where(eq(users.id, legacy.id));
   linkAttempts.delete(clerkId);
+  refreshEverything();
+  redirect("/");
+}
+
+/** On a site with an unlinked pre-Clerk account: skip linking and make a new, empty account instead. */
+export async function startFresh() {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) redirect("/sign-in?redirect_url=/account");
+  const db = await getDb();
+  await createUser(db, clerkId);
   refreshEverything();
   redirect("/");
 }
 
 const settingsSchema = z.object({
   displayName: z.string().trim().min(1, "Enter a display name.").max(60),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(USERNAME_PATTERN, "Usernames are 3–24 characters: letters, numbers and underscores."),
   visibility: z.enum(["everyone", "friends", "private"]),
   hideWatched: z.literal("on").optional(),
 });
@@ -82,14 +98,25 @@ export async function updateSettings(_prev: ActionState, formData: FormData): Pr
   const parsed = settingsSchema.safeParse(fields(formData));
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) };
   const db = await getDb();
-  await db
-    .update(users)
-    .set({
-      displayName: parsed.data.displayName,
-      visibility: parsed.data.visibility,
-      hideWatched: parsed.data.hideWatched === "on",
-    })
-    .where(eq(users.id, user.id));
+  const [taken] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.username, parsed.data.username), ne(users.id, user.id)));
+  if (taken) return { ok: false, error: `@${parsed.data.username} is taken. Try another username.` };
+  try {
+    await db
+      .update(users)
+      .set({
+        displayName: parsed.data.displayName,
+        username: parsed.data.username,
+        visibility: parsed.data.visibility,
+        hideWatched: parsed.data.hideWatched === "on",
+      })
+      .where(eq(users.id, user.id));
+  } catch {
+    // Someone claimed the username between the check and the save.
+    return { ok: false, error: `@${parsed.data.username} is taken. Try another username.` };
+  }
   refreshEverything();
   return { ok: true, savedAt: Date.now() };
 }
@@ -271,7 +298,8 @@ export async function toggleWatchlist(tmdbId: number, mediaType: MediaType) {
 
 /** "Update now" in Settings: runs the nightly job immediately. */
 export async function runRatingsUpdate(): Promise<{ message: string }> {
-  await requireUser("/settings");
+  const user = await requireUser("/settings");
+  if (!(await isSiteAdmin(user.id))) return { message: "Only the site admin can run this. It updates by itself every night." };
   const { runDailyJobs } = await import("./jobs");
   const result = await runDailyJobs();
   refreshEverything();

@@ -1,7 +1,7 @@
 import "server-only";
-import { and, desc, eq, gt, inArray } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, ne } from "drizzle-orm";
 import { cache } from "react";
-import { credits, getDb, people, titles, userTitles, viewings, type Title, type Viewing } from "@/db";
+import { credits, getDb, people, titles, users, userTitles, viewings, type Title, type Viewing } from "@/db";
 import type { MediaType } from "./format";
 
 export type ViewingWithTitle = { viewing: Viewing; title: Title };
@@ -134,6 +134,41 @@ export const getTitleState = cache(async (userId: number, tmdbId: number, mediaT
     priorWatchCount: prior,
   };
 });
+
+export type PublicTake = { username: string; displayName: string; entry: LibraryEntry };
+
+/** Ratings and reviews of one title from people whose profile is public, reviews first. */
+export async function getPublicTakes(tmdbId: number, mediaType: MediaType, excludeUserId: number | null, limit = 12): Promise<PublicTake[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({ viewing: viewings, title: titles, username: users.username, displayName: users.displayName })
+    .from(viewings)
+    .innerJoin(titles, eq(titles.id, viewings.titleId))
+    .innerJoin(users, eq(users.id, viewings.userId))
+    .where(
+      and(
+        eq(titles.tmdbId, tmdbId),
+        eq(titles.mediaType, mediaType),
+        eq(users.visibility, "everyone"),
+        excludeUserId === null ? undefined : ne(users.id, excludeUserId),
+      ),
+    );
+  const byUser = new Map<string, { displayName: string; title: Title; viewings: Viewing[] }>();
+  for (const r of rows) {
+    const group = byUser.get(r.username) ?? { displayName: r.displayName, title: r.title, viewings: [] };
+    group.viewings.push(r.viewing);
+    byUser.set(r.username, group);
+  }
+  return [...byUser.entries()]
+    .map(([username, g]) => ({ username, displayName: g.displayName, entry: summarize(g.title, g.viewings, 0) }))
+    .filter((t) => t.entry.rating !== null || t.entry.mainReview)
+    .sort(
+      (a, b) =>
+        Number(Boolean(b.entry.mainReview)) - Number(Boolean(a.entry.mainReview)) ||
+        (b.entry.lastWatched ?? "").localeCompare(a.entry.lastWatched ?? ""),
+    )
+    .slice(0, limit);
+}
 
 export async function getWatchlist(userId: number): Promise<Title[]> {
   const db = await getDb();

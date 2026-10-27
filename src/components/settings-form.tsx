@@ -10,7 +10,12 @@ import { cn } from "@/lib/format";
 import { submitTo } from "@/lib/forms";
 
 const VISIBILITY: { value: Visibility; label: string; description: string; icon: React.ReactNode }[] = [
-  { value: "everyone", label: "Everyone", description: "Anyone with the link can see your library, diary, reviews, and stats.", icon: <Globe className="size-5" /> },
+  {
+    value: "everyone",
+    label: "Everyone",
+    description: "Anyone with the link can see your library, diary, reviews, and stats, and your ratings and reviews show on title pages.",
+    icon: <Globe className="size-5" />,
+  },
   { value: "friends", label: "Friends", description: "Only friends can see them. (Friends are coming later — until then this acts like Private.)", icon: <Users className="size-5" /> },
   { value: "private", label: "Only me", description: "Your diary, reviews, and stats are hidden from everyone else.", icon: <Lock className="size-5" /> },
 ];
@@ -33,17 +38,43 @@ export function SettingsForm({
       <form onSubmit={submitTo(action)} className="space-y-8">
         <section className="rounded-xl border border-line bg-surface p-6">
           <h2 className="mb-4 font-semibold">Profile</h2>
-          <label className="block">
-            <span className="mb-1.5 block text-sm text-muted">Display name</span>
-            <input
-              name="displayName"
-              defaultValue={displayName}
-              required
-              maxLength={60}
-              className="h-11 w-full rounded-md border border-line bg-bg px-3 outline-none focus:border-fg/50"
-            />
-          </label>
-          <p className="mt-2 text-xs text-dim">Signed in as @{username}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm text-muted">Display name</span>
+              <input
+                name="displayName"
+                defaultValue={displayName}
+                required
+                maxLength={60}
+                className="h-11 w-full rounded-md border border-line bg-bg px-3 outline-none focus:border-fg/50"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm text-muted">Username</span>
+              <span className="flex h-11 items-center rounded-md border border-line bg-bg px-3 focus-within:border-fg/50">
+                <span className="text-dim">@</span>
+                <input
+                  name="username"
+                  defaultValue={username}
+                  required
+                  minLength={3}
+                  maxLength={24}
+                  pattern="[A-Za-z0-9_]+"
+                  title="Letters, numbers and underscores"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  className="h-full min-w-0 flex-1 bg-transparent outline-none"
+                />
+              </span>
+            </label>
+          </div>
+          <p className="mt-3 text-sm text-muted">
+            Your public profile:{" "}
+            <Link href={`/u/${username}`} className="text-fg underline decoration-accent underline-offset-4">
+              /u/{username}
+            </Link>
+            {visibility === "everyone" ? " · anyone with the link can see it" : " · only you can see it right now"}
+          </p>
         </section>
 
         <section className="rounded-xl border border-line bg-surface p-6">

@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/login", destination: "/sign-in", permanent: true },
       { source: "/setup", destination: "/sign-up", permanent: true },
+      // A public profile opens on its library.
+      { source: "/u/:username", destination: "/u/:username/library", permanent: false },
     ];
   },
   images: {

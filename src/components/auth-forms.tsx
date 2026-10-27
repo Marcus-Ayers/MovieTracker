@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { linkAccount, type ActionState } from "@/lib/actions";
+import { useActionState, useTransition } from "react";
+import { linkAccount, startFresh, type ActionState } from "@/lib/actions";
 import { submitTo } from "@/lib/forms";
 
 const inputClass =
@@ -25,5 +25,20 @@ export function LinkAccountForm() {
         {pending ? "Linking…" : "Link my account"}
       </button>
     </form>
+  );
+}
+
+/** Skip linking: create a new, empty account for this Clerk sign-in. */
+export function StartFreshButton() {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => startTransition(() => startFresh())}
+      className="h-11 w-full rounded-md border border-line font-semibold transition hover:border-fg/40 disabled:opacity-60"
+    >
+      {pending ? "Creating your account…" : "Start a new account"}
+    </button>
   );
 }

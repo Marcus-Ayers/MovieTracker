@@ -13,6 +13,8 @@ export type RatingsCardData = {
   omdbUsed: number;
   omdbLimit: number;
   hasOmdbKey: boolean;
+  /** Only the site admin can run the site-wide update by hand. */
+  canRunNow: boolean;
 };
 
 export function RatingsCard({ data }: { data: RatingsCardData }) {
@@ -49,21 +51,23 @@ export function RatingsCard({ data }: { data: RatingsCardData }) {
           </dd>
         </div>
       </dl>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          startTransition(async () => {
-            setMessage(null);
-            const result = await runRatingsUpdate();
-            setMessage(result.message);
-          })
-        }
-        className="inline-flex items-center gap-2 rounded border border-line px-4 py-2 text-sm hover:border-fg/40 disabled:opacity-60"
-      >
-        <RefreshCw className={cn("size-4", pending && "animate-spin")} />
-        {pending ? "Updating… this can take a minute" : "Update now"}
-      </button>
+      {data.canRunNow && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              setMessage(null);
+              const result = await runRatingsUpdate();
+              setMessage(result.message);
+            })
+          }
+          className="inline-flex items-center gap-2 rounded border border-line px-4 py-2 text-sm hover:border-fg/40 disabled:opacity-60"
+        >
+          <RefreshCw className={cn("size-4", pending && "animate-spin")} />
+          {pending ? "Updating… this can take a minute" : "Update now"}
+        </button>
+      )}
       {message && <p className="mt-3 text-sm text-muted">{message}</p>}
     </section>
   );

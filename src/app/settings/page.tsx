@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page";
 import { PlexCard, type PlexCardData } from "@/components/plex-card";
 import { RatingsCard } from "@/components/ratings-card";
 import { SettingsForm } from "@/components/settings-form";
-import { requireUser } from "@/lib/auth";
+import { isSiteAdmin, requireUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { getAccounts, getPlexConnection, serverConn } from "@/lib/plex";
 import { getRatingsStatus } from "@/lib/ratings";
@@ -30,7 +30,7 @@ async function loadPlex(userId: number): Promise<PlexCardData> {
 
 async function Settings() {
   const user = await requireUser("/settings");
-  const [s, plex] = await Promise.all([getRatingsStatus(user.id), loadPlex(user.id)]);
+  const [s, plex, admin] = await Promise.all([getRatingsStatus(user.id), loadPlex(user.id), isSiteAdmin(user.id)]);
   const ago = (d: Date | null) => (d ? `updated ${formatDistanceToNow(d, { addSuffix: true })}` : "never updated");
   return (
     <div className="max-w-2xl space-y-10 px-4 sm:px-8 lg:px-12">
@@ -45,6 +45,7 @@ async function Settings() {
           omdbUsed: s.omdbCallsToday,
           omdbLimit: s.omdbLimit,
           hasOmdbKey: s.hasOmdbKey,
+          canRunNow: admin,
         }}
       />
     </div>

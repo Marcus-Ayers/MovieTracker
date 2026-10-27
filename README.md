@@ -12,7 +12,7 @@ npm run dev
 Then open http://localhost:3000.
 
 1. Paste your TMDB key into `.env.local` after `TMDB_API_KEY=`. Either the long "API Read Access Token" or the short "API Key" works. The dev server picks up the change automatically.
-2. Visit http://localhost:3000/setup to create your account. Only the first account can be created; after that, `/setup` sends you to sign in.
+2. Click **Sign in** and create an account. Everyone who signs up gets their own diary, library, stats and watchlist. New accounts start private; each person can make theirs public in Settings, which shares it at `/u/<username>`.
 
 Locally, the database is an embedded Postgres (PGlite) stored in `.data/`. There's nothing to install. Deleting `.data/` wipes it.
 
@@ -40,7 +40,7 @@ Locally, the database is an embedded Postgres (PGlite) stored in `.data/`. There
 1. Push to GitHub, then on vercel.com: **Add New → Project → import the repo**. Before deploying, add the environment variables from `.env.example` (everything except `DATABASE_URL`), plus `CRON_SECRET` (`openssl rand -hex 32`).
 2. In the Vercel project: **Storage → Create → Neon (Postgres)**, connected to all environments. This sets `DATABASE_URL`.
 3. **Redeploy.** Every build runs `npm run vercel-build`, which applies database migrations before `next build`.
-4. On the live site: sign in (the first sign-in becomes the owner), then **Settings → Import** your local export ZIP, reconnect Plex, and hit **Ratings data → Update now**.
+4. On the live site: sign in, then **Settings → Import** your local export ZIP and reconnect Plex. The first account on the site is the admin: only it sees **Ratings data → Update now** (the same job also runs every night).
 
 Clerk's production keys need a domain you own; development keys work on `*.vercel.app`.
 
@@ -54,7 +54,8 @@ src/
   lib/tmdb.ts          Every TMDB call (cached with "use cache")
   lib/library.ts       Your diary/library queries and rating math
   lib/actions.ts       Everything that saves data (log, edit, delete, watchlist, settings)
-  lib/auth.ts          Login sessions and profile privacy
+  components/profile/  Library, diary, stats and watchlist views (yours at /library…, others' at /u/<username>/…)
+  lib/auth.ts          Clerk sign-in → accounts on this site, and profile privacy
 drizzle/               SQL migrations
 ```
 

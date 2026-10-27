@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getSignInState } from "@/lib/auth";
+import { getCurrentUser, getSignInState } from "@/lib/auth";
 import { AccountMenu } from "./account-menu";
 
 export async function NavUser() {
@@ -11,14 +11,15 @@ export async function NavUser() {
       </Link>
     );
   }
+  const user = await getCurrentUser();
   return (
     <div className="flex items-center gap-3">
       {state === "needs-link" && (
         <Link href="/account" className="rounded bg-gold px-3 py-1.5 text-xs font-semibold text-black">
-          Link your account
+          Finish setup
         </Link>
       )}
-      <AccountMenu state={state} />
+      <AccountMenu username={user?.username ?? null} />
     </div>
   );
 }

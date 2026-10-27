@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import type { Viewing } from "@/db/schema";
-import { getCurrentUser, getProfileAccess } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import {
   cn,
   formatDate,
@@ -16,7 +16,7 @@ import {
   seasonLabel,
   tmdbImage,
 } from "@/lib/format";
-import { getTitleState, historyFor } from "@/lib/library";
+import { getPublicTakes, getTitleState, historyFor } from "@/lib/library";
 import { getExternalRatings } from "@/lib/ratings";
 import {
   getCollection,
@@ -220,6 +220,9 @@ async function TitleContent({ mediaType, params }: { mediaType: MediaType; param
       <div className="mt-12 space-y-14 px-4 sm:px-8 lg:px-12">
         <Suspense fallback={null}>
           <YourActivity target={target} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <CommunityTakes target={target} />
         </Suspense>
 
         <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -468,30 +471,10 @@ async function TitleActions({ target }: { target: LogTarget }) {
 }
 
 async function YourActivity({ target }: { target: LogTarget }) {
-  const access = await getProfileAccess();
-  if (access.status !== "ok") return null;
-  const { owner, isOwner } = access;
-  const state = await getTitleState(owner.id, target.tmdbId, target.mediaType);
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const state = await getTitleState(user.id, target.tmdbId, target.mediaType);
   const entry = state.entry;
-
-  // Visitors see the owner's take: rating + main review.
-  if (!isOwner) {
-    if (!entry) return null;
-    return (
-      <section className="max-w-3xl rounded-xl border border-line bg-surface p-6">
-        <div className="mb-3 flex items-center gap-3">
-          <h2 className="text-lg font-semibold">{owner.displayName}&apos;s take</h2>
-          {entry.rating !== null && <MyRatingBadge rating={entry.rating} className="text-sm" />}
-          {entry.liked && <Heart className="size-4 fill-accent text-accent" />}
-        </div>
-        {entry.mainReview?.reviewHtml ? (
-          <ReviewBody html={entry.mainReview.reviewHtml} spoilers={entry.mainReview.containsSpoilers} />
-        ) : (
-          <p className="text-sm text-muted">Watched {plural(entry.watchCount, "time")}. No review yet.</p>
-        )}
-      </section>
-    );
-  }
 
   const history = historyFor(entry);
   const viewings = [...(entry?.viewings ?? [])].reverse();
@@ -565,6 +548,36 @@ async function YourActivity({ target }: { target: LogTarget }) {
           ))}
         </ol>
       )}
+    </section>
+  );
+}
+
+/** Ratings and main reviews from people with a public profile. */
+async function CommunityTakes({ target }: { target: LogTarget }) {
+  const user = await getCurrentUser();
+  const takes = await getPublicTakes(target.tmdbId, target.mediaType, user?.id ?? null);
+  if (!takes.length) return null;
+  return (
+    <section className="max-w-4xl">
+      <h2 className="mb-4 text-lg font-semibold tracking-tight sm:text-xl">From the community</h2>
+      <ol className="space-y-3">
+        {takes.map(({ username, displayName, entry }) => (
+          <li key={username} className="rounded-xl border border-line bg-surface p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <Link href={`/u/${username}`} className="font-semibold hover:underline hover:decoration-accent hover:underline-offset-4">
+                {displayName}
+              </Link>
+              <span className="text-sm text-dim">@{username}</span>
+              {entry.rating !== null && <span className="font-bold text-gold">{entry.rating}/10</span>}
+              {entry.liked && <Heart className="size-4 fill-accent text-accent" aria-label="Liked" />}
+              <span className="ml-auto text-sm text-dim">
+                {target.mediaType === "movie" ? `Watched ${plural(entry.watchCount, "time")}` : plural(entry.viewings.length, "entry", "entries")}
+              </span>
+            </div>
+            {entry.mainReview?.reviewHtml && <ReviewBody html={entry.mainReview.reviewHtml} spoilers={entry.mainReview.containsSpoilers} className="mt-3" />}
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

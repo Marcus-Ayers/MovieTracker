@@ -8,7 +8,7 @@ import { PosterCard } from "@/components/media/poster-card";
 import { myRatingFor, type WatchedMap } from "@/components/media/rows";
 import { MissingKey } from "@/components/missing-key";
 import { PageSkeleton } from "@/components/page";
-import { getProfileAccess } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { formatDate, tmdbImage } from "@/lib/format";
 import { getWatchedMap } from "@/lib/library";
 import { getPerson, hasTmdbKey, type PersonCredit, type PersonDetails } from "@/lib/tmdb";
@@ -38,12 +38,10 @@ function Filmography({
   title,
   credits,
   watched,
-  ownerName,
 }: {
   title: string;
   credits: PersonCredit[];
   watched: WatchedMap | null;
-  ownerName: string | null;
 }) {
   if (!credits.length) return null;
   const seen = watched ? credits.filter((c) => myRatingFor(watched, c) !== undefined) : [];
@@ -54,7 +52,7 @@ function Filmography({
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
         {watched && (
           <p className="text-sm text-muted">
-            {ownerName ?? "You"}&apos;ve seen <span className="font-bold text-gold">{seen.length}</span> of {released.length}
+            You&apos;ve seen <span className="font-bold text-gold">{seen.length}</span> of {released.length}
           </p>
         )}
       </div>
@@ -85,9 +83,8 @@ function Filmography({
 async function PersonContent({ params }: { params: PageProps<"/person/[id]">["params"] }) {
   const { id } = await params;
   const person = await loadPerson(id);
-  const access = await getProfileAccess();
-  const watched = access.status === "ok" ? await getWatchedMap(access.owner.id) : null;
-  const ownerName = access.status === "ok" && !access.isOwner ? access.owner.displayName : null;
+  const user = await getCurrentUser();
+  const watched = user ? await getWatchedMap(user.id) : null;
   const photo = tmdbImage(person.profilePath, "h632");
 
   // Lead with what they're known for.
@@ -132,7 +129,7 @@ async function PersonContent({ params }: { params: PageProps<"/person/[id]">["pa
       </div>
       <div className="space-y-14">
         {sections.map((s) => (
-          <Filmography key={s.key} title={s.title} credits={s.credits} watched={watched} ownerName={ownerName} />
+          <Filmography key={s.key} title={s.title} credits={s.credits} watched={watched} />
         ))}
       </div>
     </div>

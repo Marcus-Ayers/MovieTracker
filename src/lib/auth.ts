@@ -2,14 +2,14 @@ import "server-only";
 import { scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, like } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { getDb, users, type DB, type Visibility } from "@/db";
 
 /**
- * Sign-in is handled by Clerk (passwords, Google, 2FA, password resets). This file maps the signed-in
- * Clerk account to this site's own user row, which owns the diary, watchlist and settings.
+ * Sign-in is handled by Clerk (passwords, Google, 2FA, password resets). Every Clerk account gets its own
+ * user row here, which owns that person's diary, watchlist, ratings and settings.
  */
 
 export type CurrentUser = {
@@ -28,52 +28,80 @@ const userColumns = {
   hideWatched: users.hideWatched,
 };
 
-/** On a brand-new site, the first person to sign in becomes the owner. */
-async function createOwner(db: DB, clerkId: string): Promise<CurrentUser | null> {
-  const profile = await currentUser();
-  const email = profile?.primaryEmailAddress?.emailAddress ?? "";
-  const handle = (profile?.username || email.split("@")[0] || "owner").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 24) || "owner";
-  try {
-    const [row] = await db
-      .insert(users)
-      .values({ clerkId, username: handle, displayName: profile?.firstName || profile?.username || handle })
-      .returning(userColumns);
-    return row;
-  } catch {
-    // Two first requests raced; the other one created it.
-    const [row] = await db.select(userColumns).from(users).where(eq(users.clerkId, clerkId));
-    return row ?? null;
+export const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
+
+/** "Marcus.Ayers+test" → "marcusayerstest" */
+function toHandle(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 24);
+}
+
+/** The first free username starting with `handle`: marcus, marcus2, marcus3… */
+async function freeUsername(db: DB, handle: string) {
+  const taken = new Set((await db.select({ u: users.username }).from(users).where(like(users.username, `${handle}%`))).map((r) => r.u));
+  if (!taken.has(handle)) return handle;
+  for (let n = 2; ; n++) {
+    const candidate = `${handle.slice(0, 24 - String(n).length)}${n}`;
+    if (!taken.has(candidate)) return candidate;
   }
 }
 
-/** The signed-in user, or null for visitors. Deduplicated per request. */
+/** Creates this site's account for a Clerk sign-in. New accounts start private. */
+export async function createUser(db: DB, clerkId: string): Promise<CurrentUser> {
+  const profile = await currentUser();
+  const email = profile?.primaryEmailAddress?.emailAddress ?? "";
+  // "marcus+movies@gmail.com" → "marcus"
+  let handle = toHandle(profile?.username || email.split("@")[0].split("+")[0]);
+  if (handle.length < 3) handle = `user${handle}`;
+  const displayName = (profile?.firstName || profile?.username || handle).slice(0, 60);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const username = await freeUsername(db, handle);
+    const [row] = await db
+      .insert(users)
+      .values({ clerkId, username, displayName, visibility: "private" })
+      .onConflictDoNothing()
+      .returning(userColumns);
+    if (row) return row;
+    // Either a parallel request already created this account, or someone took the username a moment ago.
+    const [existing] = await db.select(userColumns).from(users).where(eq(users.clerkId, clerkId));
+    if (existing) return existing;
+  }
+  throw new Error("Couldn't create your account. Try again.");
+}
+
+/** Accounts made before Clerk that nobody has linked yet. Only exists on sites set up before Clerk. */
+export const hasUnlinkedLegacyAccount = cache(async () => {
+  const db = await getDb();
+  const [row] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(isNull(users.clerkId), isNotNull(users.passwordHash)))
+    .limit(1);
+  return Boolean(row);
+});
+
+/**
+ * The signed-in user, or null for visitors. A first sign-in creates the account, unless an account from
+ * before Clerk is still waiting to be linked: then /account asks whether to link it or start fresh.
+ */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const { userId: clerkId } = await auth();
   if (!clerkId) return null;
   const db = await getDb();
   const [row] = await db.select(userColumns).from(users).where(eq(users.clerkId, clerkId));
   if (row) return row;
-  const [{ value }] = await db.select({ value: count() }).from(users);
-  return value === 0 ? createOwner(db, clerkId) : null;
+  if (await hasUnlinkedLegacyAccount()) return null;
+  return createUser(db, clerkId);
 });
 
-export type SignInState = "signed-out" | "linked" | "needs-link" | "not-owner";
+export type SignInState = "signed-out" | "signed-in" | "needs-link";
 
-/**
- * Where the visitor stands:
- * - needs-link: signed in with Clerk, and this site has an account from before Clerk that isn't linked yet
- * - not-owner: signed in with Clerk, but the owner's account is already linked to someone else
- */
 export const getSignInState = cache(async (): Promise<SignInState> => {
   const { userId } = await auth();
   if (!userId) return "signed-out";
-  if (await getCurrentUser()) return "linked";
-  const db = await getDb();
-  const [owner] = await db.select({ clerkId: users.clerkId }).from(users).orderBy(asc(users.id)).limit(1);
-  return owner && !owner.clerkId ? "needs-link" : "not-owner";
+  return (await getCurrentUser()) ? "signed-in" : "needs-link";
 });
 
-/** For server actions and owner-only pages. */
+/** For server actions and pages that need an account. */
 export async function requireUser(next?: string): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (user) return user;
@@ -82,30 +110,31 @@ export async function requireUser(next?: string): Promise<CurrentUser> {
   redirect("/account");
 }
 
-/**
- * The site owner: the first account created. Public pages (library, diary, stats)
- * show this person's data. Built so more accounts + friends can be added later.
- */
-export const getOwner = cache(async (): Promise<CurrentUser | null> => {
+/** The first account on the site. Only it can run the site-wide ratings job by hand. */
+export const isSiteAdmin = cache(async (userId: number) => {
   const db = await getDb();
-  const [row] = await db.select(userColumns).from(users).orderBy(asc(users.id)).limit(1);
-  return row ?? null;
+  const [first] = await db.select({ id: users.id }).from(users).orderBy(asc(users.id)).limit(1);
+  return first?.id === userId;
 });
 
 export type ProfileAccess =
-  | { status: "no-owner" }
-  | { status: "private"; owner: CurrentUser }
-  | { status: "ok"; owner: CurrentUser; viewer: CurrentUser | null; isOwner: boolean };
+  | { status: "not-found" }
+  | { status: "private"; profile: CurrentUser }
+  | { status: "ok"; profile: CurrentUser; isOwn: boolean };
 
-/** Decides whether the current visitor may see the owner's diary, reviews, and stats. */
-export async function getProfileAccess(): Promise<ProfileAccess> {
-  const [owner, viewer] = await Promise.all([getOwner(), getCurrentUser()]);
-  if (!owner) return { status: "no-owner" };
-  const isOwner = viewer?.id === owner.id;
+/** Whether the current visitor may see someone's public profile (/u/username). */
+export const getProfileAccess = cache(async (username: string): Promise<ProfileAccess> => {
+  const db = await getDb();
+  const [[profile], viewer] = await Promise.all([
+    db.select(userColumns).from(users).where(eq(users.username, username.toLowerCase())),
+    getCurrentUser(),
+  ]);
+  if (!profile) return { status: "not-found" };
+  const isOwn = viewer?.id === profile.id;
   // "friends" behaves like "private" until a friends system exists.
-  if (!isOwner && owner.visibility !== "everyone") return { status: "private", owner };
-  return { status: "ok", owner, viewer, isOwner };
-}
+  if (!isOwn && profile.visibility !== "everyone") return { status: "private", profile };
+  return { status: "ok", profile, isOwn };
+});
 
 // ---------------------------------------------------------------------------
 // Linking an account from before Clerk (one time)

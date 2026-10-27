@@ -1,5 +1,4 @@
-import { Lock, UserPlus } from "lucide-react";
-import Link from "next/link";
+import { Lock } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/format";
 
@@ -22,17 +21,6 @@ export function Notice({ icon, title, children }: { icon: ReactNode; title: stri
       <h1 className="mb-2 text-2xl font-bold">{title}</h1>
       <div className="text-muted">{children}</div>
     </div>
-  );
-}
-
-export function NoOwnerNotice() {
-  return (
-    <Notice icon={<UserPlus className="size-6" />} title="No account yet">
-      <p className="mb-6">Sign in to create your account and start logging what you watch.</p>
-      <Link href="/sign-up" className="rounded bg-accent px-5 py-2.5 font-semibold text-white hover:bg-accent-hover">
-        Create account
-      </Link>
-    </Notice>
   );
 }
 
