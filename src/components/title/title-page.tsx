@@ -16,7 +16,8 @@ import {
   seasonLabel,
   tmdbImage,
 } from "@/lib/format";
-import { getPublicTakes, getTitleState, historyFor } from "@/lib/library";
+import { getVisibleFriendIds } from "@/lib/friends";
+import { getPublicTakes, getTakesBy, getTitleState, historyFor, type PublicTake } from "@/lib/library";
 import { getExternalRatings } from "@/lib/ratings";
 import {
   getCollection,
@@ -197,6 +198,9 @@ async function TitleContent({ mediaType, params }: { mediaType: MediaType; param
       <div className="mt-12 space-y-14 px-4 sm:px-8 lg:px-12">
         <Suspense fallback={null}>
           <YourActivity target={target} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <FriendTakes target={target} />
         </Suspense>
         <Suspense fallback={null}>
           <CommunityTakes target={target} />
@@ -529,14 +533,10 @@ async function YourActivity({ target }: { target: LogTarget }) {
   );
 }
 
-/** Ratings and main reviews from people with a public profile. */
-async function CommunityTakes({ target }: { target: LogTarget }) {
-  const user = await getCurrentUser();
-  const takes = await getPublicTakes(target.tmdbId, target.mediaType, user?.id ?? null);
-  if (!takes.length) return null;
+function TakesList({ title, takes, mediaType }: { title: string; takes: PublicTake[]; mediaType: LogTarget["mediaType"] }) {
   return (
     <section className="max-w-4xl">
-      <h2 className="mb-4 text-lg font-semibold tracking-tight sm:text-xl">From the community</h2>
+      <h2 className="mb-4 text-lg font-semibold tracking-tight sm:text-xl">{title}</h2>
       <ol className="space-y-3">
         {takes.map(({ username, displayName, entry }) => (
           <li key={username} className="rounded-xl border border-line bg-surface p-4 sm:p-5">
@@ -548,7 +548,8 @@ async function CommunityTakes({ target }: { target: LogTarget }) {
               {entry.rating !== null && <span className="font-bold text-gold">{entry.rating}/10</span>}
               {entry.liked && <Heart className="size-4 fill-accent text-accent" aria-label="Liked" />}
               <span className="ml-auto text-sm text-dim">
-                {target.mediaType === "movie" ? `Watched ${plural(entry.watchCount, "time")}` : plural(entry.viewings.length, "entry", "entries")}
+                {mediaType === "movie" ? `Watched ${plural(entry.watchCount, "time")}` : plural(entry.viewings.length, "entry", "entries")}
+                {entry.lastWatched && ` · ${formatDate(entry.lastWatched)}`}
               </span>
             </div>
             {entry.mainReview?.reviewHtml && <ReviewBody html={entry.mainReview.reviewHtml} spoilers={entry.mainReview.containsSpoilers} className="mt-3" />}
@@ -557,6 +558,23 @@ async function CommunityTakes({ target }: { target: LogTarget }) {
       </ol>
     </section>
   );
+}
+
+/** Your friends' ratings and reviews (unless you've turned that off). */
+async function FriendTakes({ target }: { target: LogTarget }) {
+  const user = await getCurrentUser();
+  if (!user?.social || !user.socialTitles) return null;
+  const takes = await getTakesBy(await getVisibleFriendIds(user.id), target.tmdbId, target.mediaType);
+  return takes.length ? <TakesList title="Friends" takes={takes} mediaType={target.mediaType} /> : null;
+}
+
+/** Ratings and main reviews from people with a public profile (friends are listed above instead). */
+async function CommunityTakes({ target }: { target: LogTarget }) {
+  const user = await getCurrentUser();
+  if (user && (!user.social || !user.socialTitles)) return null;
+  const exclude = user ? [user.id, ...(await getVisibleFriendIds(user.id))] : [];
+  const takes = await getPublicTakes(target.tmdbId, target.mediaType, exclude);
+  return takes.length ? <TakesList title="From the community" takes={takes} mediaType={target.mediaType} /> : null;
 }
 
 export function TitleSkeleton() {

@@ -64,6 +64,13 @@
       "when": 1793132292430,
       "tag": "0008_streaming_services",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793133820077,
+      "tag": "0009_friends",
+      "breakpoints": true
     }
   ]
 }

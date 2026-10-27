@@ -49,6 +49,10 @@ async function Settings() {
         ratePrompt={user.ratePrompt}
         streamingServices={user.streamingServices}
         serviceChoices={serviceChoices}
+        social={user.social}
+        socialHome={user.socialHome}
+        socialTitles={user.socialTitles}
+        friendRequests={user.friendRequests}
       />
       <PlexCard data={plex} />
       <RatingsCard

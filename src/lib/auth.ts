@@ -6,6 +6,7 @@ import { and, asc, eq, isNotNull, isNull, like } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { getDb, users, type DB, type Visibility } from "@/db";
+import { relationBetween } from "./friends";
 
 /**
  * Sign-in is handled by Clerk (passwords, Google, 2FA, password resets). Every Clerk account gets its own
@@ -22,6 +23,11 @@ export type CurrentUser = {
   ratePrompt: boolean;
   /** TMDB provider ids of your streaming services. */
   streamingServices: number[];
+  /** Social features on at all, and which ones (see Settings → Friends & social). */
+  social: boolean;
+  socialHome: boolean;
+  socialTitles: boolean;
+  friendRequests: boolean;
 };
 
 const userColumns = {
@@ -32,6 +38,10 @@ const userColumns = {
   hideWatched: users.hideWatched,
   ratePrompt: users.ratePrompt,
   streamingServices: users.streamingServices,
+  social: users.social,
+  socialHome: users.socialHome,
+  socialTitles: users.socialTitles,
+  friendRequests: users.friendRequests,
 };
 
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
@@ -51,7 +61,7 @@ async function freeUsername(db: DB, handle: string) {
   }
 }
 
-/** Creates this site's account for a Clerk sign-in. New accounts start private. */
+/** Creates this site's account for a Clerk sign-in. New accounts start friends-only. */
 export async function createUser(db: DB, clerkId: string): Promise<CurrentUser | null> {
   // Null when the Clerk account no longer exists (e.g. it was just deleted and the session hasn't ended yet).
   const profile = await currentUser().catch(() => null);
@@ -65,7 +75,7 @@ export async function createUser(db: DB, clerkId: string): Promise<CurrentUser |
     const username = await freeUsername(db, handle);
     const [row] = await db
       .insert(users)
-      .values({ clerkId, username, displayName, visibility: "private" })
+      .values({ clerkId, username, displayName, visibility: "friends" })
       .onConflictDoNothing()
       .returning(userColumns);
     if (row) return row;
@@ -139,8 +149,11 @@ export const getProfileAccess = cache(async (username: string): Promise<ProfileA
   ]);
   if (!profile) return { status: "not-found" };
   const isOwn = viewer?.id === profile.id;
-  // "friends" behaves like "private" until a friends system exists.
-  if (!isOwn && profile.visibility !== "everyone") return { status: "private", profile };
+  const allowed =
+    isOwn ||
+    profile.visibility === "everyone" ||
+    (profile.visibility === "friends" && viewer !== null && (await relationBetween(viewer.id, profile.id)) === "friends");
+  if (!allowed) return { status: "private", profile };
   return { status: "ok", profile, isOwn };
 });
 

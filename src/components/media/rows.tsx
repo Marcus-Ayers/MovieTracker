@@ -19,12 +19,15 @@ export function PosterRow({
   items,
   watched,
   href,
+  captions,
 }: {
   title: string;
   subtitle?: string;
   items: PosterItem[];
   watched: WatchedMap | null;
   href?: string;
+  /** A line under particular posters, keyed "movie-949". */
+  captions?: Record<string, string>;
 }) {
   if (!items.length) return null;
   return (
@@ -34,6 +37,7 @@ export function PosterRow({
           key={`${item.mediaType}-${item.id}`}
           item={item}
           myRating={myRatingFor(watched, item)}
+          subtitle={captions?.[`${item.mediaType}-${item.id}`]}
           className="w-[34vw] sm:w-40 lg:w-44 xl:w-48"
         />
       ))}

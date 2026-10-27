@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, notInArray, type SQL } from "drizzle-orm";
 import { cache } from "react";
 import { credits, getDb, people, titles, users, userTitles, viewings, type Title, type Viewing } from "@/db";
 import type { MediaType } from "./format";
@@ -137,22 +137,15 @@ export const getTitleState = cache(async (userId: number, tmdbId: number, mediaT
 
 export type PublicTake = { username: string; displayName: string; entry: LibraryEntry };
 
-/** Ratings and reviews of one title from people whose profile is public, reviews first. */
-export async function getPublicTakes(tmdbId: number, mediaType: MediaType, excludeUserId: number | null, limit = 12): Promise<PublicTake[]> {
+/** Each matching person's entry for one title. */
+async function takesFor(tmdbId: number, mediaType: MediaType, who: SQL | undefined, onlyOpinions: boolean, limit: number): Promise<PublicTake[]> {
   const db = await getDb();
   const rows = await db
     .select({ viewing: viewings, title: titles, username: users.username, displayName: users.displayName })
     .from(viewings)
     .innerJoin(titles, eq(titles.id, viewings.titleId))
     .innerJoin(users, eq(users.id, viewings.userId))
-    .where(
-      and(
-        eq(titles.tmdbId, tmdbId),
-        eq(titles.mediaType, mediaType),
-        eq(users.visibility, "everyone"),
-        excludeUserId === null ? undefined : ne(users.id, excludeUserId),
-      ),
-    );
+    .where(and(eq(titles.tmdbId, tmdbId), eq(titles.mediaType, mediaType), who));
   const byUser = new Map<string, { displayName: string; title: Title; viewings: Viewing[] }>();
   for (const r of rows) {
     const group = byUser.get(r.username) ?? { displayName: r.displayName, title: r.title, viewings: [] };
@@ -161,13 +154,24 @@ export async function getPublicTakes(tmdbId: number, mediaType: MediaType, exclu
   }
   return [...byUser.entries()]
     .map(([username, g]) => ({ username, displayName: g.displayName, entry: summarize(g.title, g.viewings, 0) }))
-    .filter((t) => t.entry.rating !== null || t.entry.mainReview)
+    .filter((t) => !onlyOpinions || t.entry.rating !== null || t.entry.mainReview)
     .sort(
       (a, b) =>
         Number(Boolean(b.entry.mainReview)) - Number(Boolean(a.entry.mainReview)) ||
         (b.entry.lastWatched ?? "").localeCompare(a.entry.lastWatched ?? ""),
     )
     .slice(0, limit);
+}
+
+/** Ratings and reviews of one title from public profiles (social features on), reviews first. */
+export function getPublicTakes(tmdbId: number, mediaType: MediaType, excludeUserIds: number[], limit = 12) {
+  const who = and(eq(users.visibility, "everyone"), eq(users.social, true), excludeUserIds.length ? notInArray(users.id, excludeUserIds) : undefined);
+  return takesFor(tmdbId, mediaType, who, true, limit);
+}
+
+/** These people's entries for one title (friends on a title page), including ones without a rating. */
+export async function getTakesBy(userIds: number[], tmdbId: number, mediaType: MediaType) {
+  return userIds.length ? takesFor(tmdbId, mediaType, inArray(users.id, userIds), false, 50) : [];
 }
 
 /** Your watchlist with when each title was added, newest first. */

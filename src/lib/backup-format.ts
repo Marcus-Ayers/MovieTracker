@@ -47,6 +47,10 @@ export const backupProfile = z.object({
   hideWatched: z.boolean(),
   ratePrompt: z.boolean().optional(),
   streamingServices: z.array(z.number().int().positive()).max(100).optional(),
+  social: z.boolean().optional(),
+  socialHome: z.boolean().optional(),
+  socialTitles: z.boolean().optional(),
+  friendRequests: z.boolean().optional(),
 });
 
 export const backupSchema = z.object({

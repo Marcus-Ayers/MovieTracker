@@ -35,6 +35,10 @@ export async function restoreProfileSettings(profile: z.infer<typeof backupProfi
       hideWatched: p.hideWatched,
       ...(p.ratePrompt === undefined ? {} : { ratePrompt: p.ratePrompt }),
       ...(p.streamingServices === undefined ? {} : { streamingServices: p.streamingServices }),
+      ...(p.social === undefined ? {} : { social: p.social }),
+      ...(p.socialHome === undefined ? {} : { socialHome: p.socialHome }),
+      ...(p.socialTitles === undefined ? {} : { socialTitles: p.socialTitles }),
+      ...(p.friendRequests === undefined ? {} : { friendRequests: p.friendRequests }),
     })
     .where(eq(users.id, user.id));
 }

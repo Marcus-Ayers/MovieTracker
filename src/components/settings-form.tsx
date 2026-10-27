@@ -18,7 +18,7 @@ const VISIBILITY: { value: Visibility; label: string; description: string; icon:
     description: "Anyone with the link can see your library, diary, reviews, and stats, and your ratings and reviews show on title pages.",
     icon: <Globe className="size-5" />,
   },
-  { value: "friends", label: "Friends", description: "Only friends can see them. (Friends are coming later — until then this acts like Private.)", icon: <Users className="size-5" /> },
+  { value: "friends", label: "Friends", description: "Only people you've accepted as friends can see your library, diary, reviews, and stats.", icon: <Users className="size-5" /> },
   { value: "private", label: "Only me", description: "Your diary, reviews, and stats are hidden from everyone else.", icon: <Lock className="size-5" /> },
 ];
 
@@ -30,6 +30,10 @@ export function SettingsForm({
   ratePrompt,
   streamingServices,
   serviceChoices,
+  social,
+  socialHome,
+  socialTitles,
+  friendRequests,
 }: {
   displayName: string;
   username: string;
@@ -38,7 +42,12 @@ export function SettingsForm({
   ratePrompt: boolean;
   streamingServices: number[];
   serviceChoices: { featured: WatchProvider[]; others: WatchProvider[] } | null;
+  social: boolean;
+  socialHome: boolean;
+  socialTitles: boolean;
+  friendRequests: boolean;
 }) {
+  const [socialOn, setSocialOn] = useState(social);
   const [state, action, pending] = useActionState(updateSettings, { ok: false } as ActionState);
   const [allServices, setAllServices] = useState(false);
   // The big services first; the rest stay in the form (hidden) so ticked ones are still saved.
@@ -86,7 +95,11 @@ export function SettingsForm({
             <Link href={`/u/${username}`} className="text-fg underline decoration-accent underline-offset-4">
               /u/{username}
             </Link>
-            {visibility === "everyone" ? " · anyone with the link can see it" : " · only you can see it right now"}
+            {visibility === "everyone"
+              ? " · anyone with the link can see it"
+              : visibility === "friends"
+                ? " · only your friends can see it"
+                : " · only you can see it right now"}
           </p>
         </section>
 
@@ -109,6 +122,39 @@ export function SettingsForm({
                     <span className="block text-sm text-muted">{option.description}</span>
                   </span>
                 </span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section id="social" className="scroll-mt-24 rounded-xl border border-line bg-surface p-6">
+          <h2 className="mb-4 font-semibold">Friends &amp; social</h2>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              name="social"
+              checked={socialOn}
+              onChange={(e) => setSocialOn(e.target.checked)}
+              className="mt-1 size-4 accent-accent"
+            />
+            <span>
+              <span className="block font-medium">Social features</span>
+              <span className="block text-sm text-muted">
+                Friends, friend requests, and other people&apos;s ratings and reviews. Turn this off to keep the site to yourself: nothing social
+                shows anywhere, nobody can find you or send you a request, and your diary stays out of friends&apos; feeds. Your friends are kept in
+                case you turn it back on. Who can open your profile link is still up to the setting above.
+              </span>
+            </span>
+          </label>
+          <div className={cn("mt-4 space-y-3 border-l border-line pl-5 transition", !socialOn && "pointer-events-none opacity-40")} aria-disabled={!socialOn}>
+            {[
+              { name: "socialHome", checked: socialHome, label: "Show what friends watched on the home page" },
+              { name: "socialTitles", checked: socialTitles, label: "Show friends' and other people's ratings and reviews on title pages" },
+              { name: "friendRequests", checked: friendRequests, label: "Let people find me and send me friend requests" },
+            ].map((o) => (
+              <label key={o.name} className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" name={o.name} defaultChecked={o.checked} tabIndex={socialOn ? 0 : -1} className="mt-1 size-4 accent-accent" />
+                <span className="text-sm">{o.label}</span>
               </label>
             ))}
           </div>

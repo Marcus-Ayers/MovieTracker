@@ -93,6 +93,10 @@ const settingsSchema = z.object({
   visibility: z.enum(["everyone", "friends", "private"]),
   hideWatched: z.literal("on").optional(),
   ratePrompt: z.literal("on").optional(),
+  social: z.literal("on").optional(),
+  socialHome: z.literal("on").optional(),
+  socialTitles: z.literal("on").optional(),
+  friendRequests: z.literal("on").optional(),
 });
 
 export async function updateSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -117,6 +121,10 @@ export async function updateSettings(_prev: ActionState, formData: FormData): Pr
         hideWatched: parsed.data.hideWatched === "on",
         ratePrompt: parsed.data.ratePrompt === "on",
         streamingServices: services,
+        social: parsed.data.social === "on",
+        socialHome: parsed.data.socialHome === "on",
+        socialTitles: parsed.data.socialTitles === "on",
+        friendRequests: parsed.data.friendRequests === "on",
         // Turning the pop-up back on starts fresh instead of popping up everything from while it was off.
         ...(parsed.data.ratePrompt === "on" && !user.ratePrompt ? { ratePromptSeenAt: new Date() } : {}),
       })

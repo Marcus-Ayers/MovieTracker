@@ -18,6 +18,7 @@ import {
 export const mediaTypeEnum = pgEnum("media_type", ["movie", "tv"]);
 export const visibilityEnum = pgEnum("visibility", ["everyone", "friends", "private"]);
 export const creditRoleEnum = pgEnum("credit_role", ["director", "writer", "creator", "cast"]);
+export const friendshipStatusEnum = pgEnum("friendship_status", ["pending", "accepted"]);
 
 export type Genre = { id: number; name: string };
 export type SeasonInfo = {
@@ -44,6 +45,11 @@ export const users = pgTable("users", {
   ratePromptSeenAt: timestamp("rate_prompt_seen_at", { withTimezone: true }).notNull().defaultNow(),
   // TMDB watch-provider ids of the streaming services you pay for (Netflix = 8, …).
   streamingServices: jsonb("streaming_services").$type<number[]>().notNull().default([]),
+  // Social features. `social` off hides everything social and takes you out of other people's feeds and search.
+  social: boolean("social").notNull().default(true),
+  socialHome: boolean("social_home").notNull().default(true),
+  socialTitles: boolean("social_titles").notNull().default(true),
+  friendRequests: boolean("friend_requests").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -238,6 +244,26 @@ export const plexItems = pgTable(
 );
 
 export type User = typeof users.$inferSelect;
+/**
+ * Friend requests and friendships: one row per pair. "pending" until the addressee accepts; declining,
+ * cancelling or unfriending deletes the row.
+ */
+export const friendships = pgTable(
+  "friendships",
+  {
+    requesterId: integer("requester_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    addresseeId: integer("addressee_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: friendshipStatusEnum("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.requesterId, t.addresseeId] }), index("friendships_addressee_idx").on(t.addresseeId)],
+);
+
 export type Title = typeof titles.$inferSelect;
 export type Viewing = typeof viewings.$inferSelect;
 export type Visibility = (typeof visibilityEnum.enumValues)[number];

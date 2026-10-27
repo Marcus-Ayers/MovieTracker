@@ -24,10 +24,11 @@ export function Notice({ icon, title, children }: { icon: ReactNode; title: stri
   );
 }
 
-export function PrivateNotice({ name }: { name: string }) {
+export function PrivateNotice({ name, friendsOnly = false, children }: { name: string; friendsOnly?: boolean; children?: ReactNode }) {
   return (
-    <Notice icon={<Lock className="size-6" />} title="This profile is private">
-      <p>{name} has chosen to keep their diary, reviews, and stats private.</p>
+    <Notice icon={<Lock className="size-6" />} title={friendsOnly ? "Friends only" : "This profile is private"}>
+      <p>{friendsOnly ? `Only ${name}'s friends can see their diary, reviews, and stats.` : `${name} has chosen to keep their diary, reviews, and stats private.`}</p>
+      {children && <div className="mt-6 flex justify-center">{children}</div>}
     </Notice>
   );
 }

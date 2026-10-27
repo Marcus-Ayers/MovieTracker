@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { getFriendActivity, type FriendActivity } from "@/lib/friends";
 import { genreNames } from "@/lib/genres";
 import { getLibrary, getWatchlist, watchedKey } from "@/lib/library";
 import { discover, getLogoPath, getMovieList, getTitleDetails, getTrending, type MediaItem } from "@/lib/tmdb";
@@ -7,7 +8,7 @@ import type { PosterItem } from "../media/poster-card";
 import { myRatingFor, PosterRow, RowSkeleton, Top10Row, type WatchedMap } from "../media/rows";
 import { HideWatchedToggle } from "./hide-watched-toggle";
 
-type RowDef = { title: string; kind: "poster" | "top10"; load: () => Promise<PosterItem[]>; href?: string };
+type RowDef = { title: string; kind: "poster" | "top10"; load: () => Promise<PosterItem[]>; href?: string; captions?: Record<string, string> };
 
 // Talk shows, news, and soaps crowd out everything else in TMDB's TV lists.
 const TV_NOISE = "10763,10766,10767";
@@ -48,6 +49,30 @@ const HOME_ROWS = {
   ] satisfies RowDef[],
 };
 
+/** Friends' recent watches, one poster per title, captioned "Alex · 9/10" or "Alex +2". */
+function friendsRow(activity: FriendActivity[]): RowDef | null {
+  const byTitle = new Map<string, { item: PosterItem; names: string[]; rating: number | null }>();
+  for (const { person, viewing, title: t } of activity) {
+    const key = `${t.mediaType}-${t.tmdbId}`;
+    const entry = byTitle.get(key) ?? {
+      item: { id: t.tmdbId, mediaType: t.mediaType, title: t.title, year: t.year, posterPath: t.posterPath, voteAverage: t.voteAverage },
+      names: [],
+      rating: viewing.rating,
+    };
+    if (!entry.names.includes(person.displayName)) entry.names.push(person.displayName);
+    byTitle.set(key, entry);
+  }
+  const rows = [...byTitle.entries()].slice(0, 20);
+  if (!rows.length) return null;
+  const captions = Object.fromEntries(
+    rows.map(([key, { names, rating }]) => [
+      key,
+      names.length > 1 ? `${names[0]} +${names.length - 1}` : `${names[0]}${rating !== null ? ` · ${rating}/10` : ""}`,
+    ]),
+  );
+  return { title: "What Friends Watched", kind: "poster", load: async () => rows.map(([, r]) => r.item), href: "/friends", captions };
+}
+
 async function buildHero(items: MediaItem[], watched: WatchedMap | null): Promise<HeroItem[]> {
   const picks = items.filter((i) => i.backdropPath && i.overview).slice(0, 6);
   return Promise.all(
@@ -68,7 +93,10 @@ async function buildHero(items: MediaItem[], watched: WatchedMap | null): Promis
 
 export async function BrowseContent() {
   const user = await getCurrentUser();
-  const [library, watchlist] = user ? await Promise.all([getLibrary(user.id), getWatchlist(user.id)]) : [[], []];
+  const showFriends = Boolean(user?.social && user.socialHome);
+  const [library, watchlist, activity] = user
+    ? await Promise.all([getLibrary(user.id), getWatchlist(user.id), showFriends ? getFriendActivity(user.id, 60) : []])
+    : [[], [], []];
   const watched: WatchedMap | null = user
     ? Object.fromEntries(library.map((e) => [watchedKey(e.title.mediaType, e.title.tmdbId), e.rating]))
     : null;
@@ -76,6 +104,9 @@ export async function BrowseContent() {
 
   const defs = HOME_ROWS;
   const personal: RowDef[] = [];
+
+  const friends = friendsRow(activity);
+  if (friends) personal.push(friends);
 
   const watchlistItems: PosterItem[] = watchlist.map((t) => ({ id: t.tmdbId, mediaType: t.mediaType, title: t.title, year: t.year, posterPath: t.posterPath, voteAverage: t.voteAverage }));
   if (watchlistItems.length) personal.push({ title: "From Your Watchlist", kind: "poster", load: async () => watchlistItems });
@@ -112,7 +143,7 @@ export async function BrowseContent() {
           const items = rowItems[i];
           if (row.kind === "top10") return <Top10Row key={row.title} title={row.title} items={items} watched={watched} />;
           const visible = hideWatched ? items.filter((item) => myRatingFor(watched, item) === undefined) : items;
-          return <PosterRow key={row.title} title={row.title} items={visible} watched={watched} href={row.href} />;
+          return <PosterRow key={row.title} title={row.title} items={visible} watched={watched} href={row.href} captions={row.captions} />;
         })}
       </div>
     </>

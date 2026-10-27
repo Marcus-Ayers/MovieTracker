@@ -3,8 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Notice, PrivateNotice } from "@/components/page";
-import { getProfileAccess, getSignInState, type CurrentUser } from "@/lib/auth";
+import { FriendButton } from "@/components/friends/friend-button";
+import { getCurrentUser, getProfileAccess, getSignInState, type CurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/format";
+import { relationBetween } from "@/lib/friends";
 
 /** Whose library/diary/stats/watchlist a view shows, and where its links point. */
 export type ProfileViewProps = {
@@ -22,7 +24,15 @@ export const profileBase = (username: string) => `/u/${username}`;
 export async function openProfile(params: Promise<{ username: string }>): Promise<{ view: Omit<ProfileViewProps, "searchParams"> } | { notice: ReactNode }> {
   const access = await getProfileAccess((await params).username);
   if (access.status === "not-found") notFound();
-  if (access.status === "private") return { notice: <PrivateNotice name={access.profile.displayName} /> };
+  if (access.status === "private") {
+    return {
+      notice: (
+        <PrivateNotice name={access.profile.displayName} friendsOnly={access.profile.visibility === "friends"}>
+          <ProfileFriendButton profile={access.profile} />
+        </PrivateNotice>
+      ),
+    };
+  }
   return { view: { profile: access.profile, isOwn: access.isOwn, base: profileBase(access.profile.username) } };
 }
 
@@ -34,6 +44,15 @@ const SECTIONS: { value: ProfileSection; label: string }[] = [
   { value: "stats", label: "Stats" },
   { value: "watchlist", label: "Watchlist" },
 ];
+
+/** Add friend / Requested / Friends on someone else's profile, when you both have social features on. */
+async function ProfileFriendButton({ profile }: { profile: CurrentUser }) {
+  const viewer = await getCurrentUser();
+  if (!viewer?.social || viewer.id === profile.id || !profile.social) return null;
+  const relation = await relationBetween(viewer.id, profile.id);
+  if (relation === "none" && !profile.friendRequests) return null;
+  return <FriendButton username={profile.username} relation={relation} size="sm" />;
+}
 
 /** Tabs across someone's public profile. */
 export function ProfileTabs({ profile, base, active }: { profile: CurrentUser; base: string; active: ProfileSection }) {
@@ -52,6 +71,9 @@ export function ProfileTabs({ profile, base, active }: { profile: CurrentUser; b
           {s.label}
         </Link>
       ))}
+      <span className="ml-auto shrink-0 pl-2">
+        <ProfileFriendButton profile={profile} />
+      </span>
     </nav>
   );
 }
