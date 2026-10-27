@@ -3,40 +3,49 @@ import Image from "next/image";
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/page";
 import { ProfileTabs, type ProfileViewProps } from "@/components/profile/profile-nav";
+import { ReviewBody } from "@/components/title/review-body";
 import { cn, plural, seasonLabel, titleHref, tmdbImage } from "@/lib/format";
 import { compareViewings, getViewings, type ViewingWithTitle } from "@/lib/library";
 import { MONTHS_LONG } from "@/lib/stats";
 
-function Entry({ row }: { row: ViewingWithTitle }) {
+function Entry({ row, showReview }: { row: ViewingWithTitle; showReview: boolean }) {
   const { viewing: v, title: t } = row;
   const poster = tmdbImage(t.posterPath, "w92");
   return (
-    <li className="flex items-center gap-4 border-b border-line/60 py-3 last:border-0">
-      <div className="w-10 shrink-0 text-center">
-        {v.watchedOn ? <span className="text-2xl font-bold tabular-nums text-fg/90">{Number(v.watchedOn.slice(8))}</span> : <span className="text-xs text-dim">—</span>}
-      </div>
-      <Link href={titleHref(t.mediaType, t.tmdbId)} className="relative h-[60px] w-10 shrink-0 overflow-hidden rounded bg-surface-2">
-        {poster && <Image src={poster} alt="" fill sizes="40px" className="object-cover" />}
-      </Link>
-      <div className="min-w-0 flex-1">
-        <Link href={titleHref(t.mediaType, t.tmdbId)} className="font-semibold hover:underline hover:decoration-accent hover:underline-offset-4">
-          {t.title}
+    <li className="border-b border-line/60 py-3 last:border-0">
+      <div className="flex items-center gap-4">
+        <div className="w-10 shrink-0 text-center">
+          {v.watchedOn ? <span className="text-2xl font-bold tabular-nums text-fg/90">{Number(v.watchedOn.slice(8))}</span> : <span className="text-xs text-dim">—</span>}
+        </div>
+        <Link href={titleHref(t.mediaType, t.tmdbId)} className="relative h-[60px] w-10 shrink-0 overflow-hidden rounded bg-surface-2">
+          {poster && <Image src={poster} alt="" fill sizes="40px" className="object-cover" />}
         </Link>
-        <span className="ml-2 text-sm text-muted">{t.year}</span>
-        <p className="truncate text-xs text-dim">
-          {[t.mediaType === "tv" ? seasonLabel(v.seasonNumber) : null, v.watchedWhere, v.format, v.watchedWith && `with ${v.watchedWith}`]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
+        <div className="min-w-0 flex-1">
+          <Link href={titleHref(t.mediaType, t.tmdbId)} className="font-semibold hover:underline hover:decoration-accent hover:underline-offset-4">
+            {t.title}
+          </Link>
+          <span className="ml-2 text-sm text-muted">{t.year}</span>
+          <p className="truncate text-xs text-dim">
+            {[t.mediaType === "tv" ? seasonLabel(v.seasonNumber) : null, v.watchedWhere, v.format, v.watchedWith && `with ${v.watchedWith}`]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {v.reviewHtml && <FileText className="size-4 text-muted" aria-label="Has review" />}
+          {v.isRewatch && <Repeat className="size-4 text-muted" aria-label="Rewatch" />}
+          {v.liked && <Heart className="size-4 fill-accent text-accent" aria-label="Liked" />}
+          <span className={cn("w-12 text-right font-bold tabular-nums", v.rating !== null ? "text-gold" : "text-dim")}>
+            {v.rating !== null ? `${v.rating}/10` : "–"}
+          </span>
+        </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3">
-        {v.reviewHtml && <FileText className="size-4 text-muted" aria-label="Has review" />}
-        {v.isRewatch && <Repeat className="size-4 text-muted" aria-label="Rewatch" />}
-        {v.liked && <Heart className="size-4 fill-accent text-accent" aria-label="Liked" />}
-        <span className={cn("w-12 text-right font-bold tabular-nums", v.rating !== null ? "text-gold" : "text-dim")}>
-          {v.rating !== null ? `${v.rating}/10` : "–"}
-        </span>
-      </div>
+      {/* Lined up under the title, past the day number and poster. */}
+      {showReview && v.reviewHtml && (
+        <div className="ml-28 mt-2">
+          <ReviewBody html={v.reviewHtml} spoilers={v.containsSpoilers} />
+        </div>
+      )}
     </li>
   );
 }
@@ -57,7 +66,8 @@ export async function DiaryView({ profile, isOwn, base, searchParams }: ProfileV
   const type = params.type === "movie" || params.type === "tv" ? params.type : null;
   const where = params.where ?? null;
   const rewatch = params.rewatch === "1";
-  const rows = all.filter(
+  const reviews = params.reviews === "1";
+  const matching = all.filter(
     ({ viewing: v, title: t }) =>
       (!month || v.watchedOn?.startsWith(month)) &&
       (!year || v.watchedOn?.startsWith(year)) &&
@@ -65,6 +75,8 @@ export async function DiaryView({ profile, isOwn, base, searchParams }: ProfileV
       (!where || v.watchedWhere?.toLowerCase() === where.toLowerCase()) &&
       (!rewatch || v.isRewatch),
   );
+  const reviewed = matching.filter((r) => r.viewing.reviewHtml);
+  const rows = reviews ? reviewed : matching;
 
   const dated = rows.filter((r) => r.viewing.watchedOn);
   const undated = rows.filter((r) => !r.viewing.watchedOn);
@@ -86,13 +98,34 @@ export async function DiaryView({ profile, isOwn, base, searchParams }: ProfileV
     where && { label: `Watched on ${where}`, href: without("where") },
     rewatch && { label: "Rewatches", href: without("rewatch") },
   ].filter((f): f is { label: string; href: string } => Boolean(f));
+  const withReviews = (() => {
+    const next = new URLSearchParams(params);
+    next.set("reviews", "1");
+    return `${base}/diary?${next.toString()}`;
+  })();
 
   return (
     <>
       <PageHeader
         title={isOwn ? "Your diary" : `${profile.displayName}'s diary`}
-        subtitle={`${plural(dated.length, "entry", "entries")}${undated.length ? ` · ${undated.length} with no date` : ""}`}
-      />
+        subtitle={`${plural(dated.length, reviews ? "review" : "entry", reviews ? "reviews" : "entries")}${undated.length ? ` · ${undated.length} with no date` : ""}`}
+      >
+        <div className="flex rounded-full border border-line p-0.5 text-sm">
+          {[
+            { label: "All entries", href: without("reviews"), active: !reviews },
+            { label: "With reviews", href: withReviews, active: reviews, count: reviewed.length },
+          ].map((tab) => (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              className={cn("rounded-full px-4 py-1.5 transition", tab.active ? "bg-fg font-semibold text-bg" : "text-muted hover:text-fg")}
+            >
+              {tab.label}
+              {tab.count !== undefined && <span className={cn("ml-1.5 tabular-nums", tab.active ? "text-bg/60" : "text-dim")}>{tab.count}</span>}
+            </Link>
+          ))}
+        </div>
+      </PageHeader>
       {base && <ProfileTabs profile={profile} base={base} active="diary" />}
       {years.length > 0 && (
         <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto px-4 sm:px-8 lg:px-12">
@@ -127,8 +160,14 @@ export async function DiaryView({ profile, isOwn, base, searchParams }: ProfileV
         </div>
       )}
       {rows.length === 0 ? (
-        <EmptyState title={all.length ? "No entries match" : isOwn ? "Your diary is empty" : "Nothing logged yet"}>
-          {all.length ? "Try removing a filter." : isOwn ? "Every time you log a movie or a season, it shows up here." : undefined}
+        <EmptyState title={all.length ? (reviews ? "No reviews match" : "No entries match") : isOwn ? "Your diary is empty" : "Nothing logged yet"}>
+          {all.length
+            ? reviews
+              ? "Switch back to All entries, or try another year."
+              : "Try removing a filter."
+            : isOwn
+              ? "Every time you log a movie or a season, it shows up here."
+              : undefined}
         </EmptyState>
       ) : (
         <div className="max-w-4xl space-y-10 px-4 sm:px-8 lg:px-12">
@@ -140,7 +179,7 @@ export async function DiaryView({ profile, isOwn, base, searchParams }: ProfileV
               </h2>
               <ul>
                 {entries.map((row) => (
-                  <Entry key={row.viewing.id} row={row} />
+                  <Entry key={row.viewing.id} row={row} showReview={reviews} />
                 ))}
               </ul>
             </section>
@@ -155,7 +194,7 @@ export async function DiaryView({ profile, isOwn, base, searchParams }: ProfileV
               </summary>
               <ul className="border-t border-line px-4">
                 {undated.map((row) => (
-                  <Entry key={row.viewing.id} row={row} />
+                  <Entry key={row.viewing.id} row={row} showReview={reviews} />
                 ))}
               </ul>
             </details>
