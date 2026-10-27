@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Flame, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame, Sparkles, Trophy } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -302,7 +302,13 @@ export async function StatsView({ profile, isOwn, base, searchParams }: ProfileV
   return (
     <>
       <PageHeader title={isOwn ? "Your stats" : `${profile.displayName}'s stats`} subtitle={periodLabel}>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`${base}/recap/${view === "all" ? currentYear : year}`}
+            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-accent-hover"
+          >
+            <Sparkles className="size-4" /> {view === "all" ? currentYear : year} in review
+          </Link>
           <div className="flex rounded-full border border-line p-0.5 text-sm">
             {(["all", "year", "month"] as View[]).map((v) => (
               <Link
