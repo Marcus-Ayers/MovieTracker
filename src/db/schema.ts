@@ -38,6 +38,10 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   visibility: visibilityEnum("visibility").notNull().default("everyone"),
   hideWatched: boolean("hide_watched").notNull().default(false),
+  // Pop up "rate what you just watched on Plex" when new Plex watches show up.
+  ratePrompt: boolean("rate_prompt").notNull().default(true),
+  // Plex watches synced after this have not been shown in that pop-up yet.
+  ratePromptSeenAt: timestamp("rate_prompt_seen_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -122,6 +126,8 @@ export const viewings = pgTable(
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     // Set on imported entries (e.g. "lb:diary:<uri>", "tmdb:movie:550") so re-running an import skips them.
     importKey: text("import_key"),
+    // "Don't ask me to rate this" in the rating queue.
+    skipRating: boolean("skip_rating").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

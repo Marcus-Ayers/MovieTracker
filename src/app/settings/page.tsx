@@ -34,7 +34,13 @@ async function Settings() {
   const ago = (d: Date | null) => (d ? `updated ${formatDistanceToNow(d, { addSuffix: true })}` : "never updated");
   return (
     <div className="max-w-2xl space-y-10 px-4 sm:px-8 lg:px-12">
-      <SettingsForm displayName={user.displayName} username={user.username} visibility={user.visibility} hideWatched={user.hideWatched} />
+      <SettingsForm
+        displayName={user.displayName}
+        username={user.username}
+        visibility={user.visibility}
+        hideWatched={user.hideWatched}
+        ratePrompt={user.ratePrompt}
+      />
       <PlexCard data={plex} />
       <RatingsCard
         data={{

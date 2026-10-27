@@ -1,8 +1,11 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/nav/site-header";
+import { RatePrompt } from "@/components/rate/rate-prompt";
+import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,6 +26,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#0b0b0e",
 };
+
+/** The "rate your new Plex watches" pop-up, for signed-in people who haven't turned it off. */
+async function RatePromptGate() {
+  const user = await getCurrentUser();
+  return user?.ratePrompt ? <RatePrompt /> : null;
+}
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -48,6 +57,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <SiteHeader />
           <main className="flex-1">{children}</main>
           <SiteFooter />
+          <Suspense>
+            <RatePromptGate />
+          </Suspense>
         </ClerkProvider>
       </body>
     </html>

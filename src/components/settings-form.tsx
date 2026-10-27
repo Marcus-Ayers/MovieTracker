@@ -25,11 +25,13 @@ export function SettingsForm({
   username,
   visibility,
   hideWatched,
+  ratePrompt,
 }: {
   displayName: string;
   username: string;
   visibility: Visibility;
   hideWatched: boolean;
+  ratePrompt: boolean;
 }) {
   const [state, action, pending] = useActionState(updateSettings, { ok: false } as ActionState);
   const clerk = useClerk();
@@ -108,6 +110,24 @@ export function SettingsForm({
             <span>
               <span className="block">Hide things I&apos;ve already watched</span>
               <span className="block text-sm text-muted">Applies to browse rows. Top 10 lists always show everything. You can also toggle this on the home page.</span>
+            </span>
+          </label>
+        </section>
+
+        <section className="rounded-xl border border-line bg-surface p-6">
+          <h2 className="mb-4 font-semibold">Rating</h2>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input type="checkbox" name="ratePrompt" defaultChecked={ratePrompt} className="mt-1 size-4 accent-accent" />
+            <span>
+              <span className="block">Ask me to rate new Plex watches</span>
+              <span className="block text-sm text-muted">
+                When you open the site after watching something new on Plex, a pop-up lets you rate it right away. Everything unrated is
+                also waiting in{" "}
+                <Link href="/rate" className="text-fg underline decoration-accent underline-offset-4">
+                  Rate what you&apos;ve watched
+                </Link>
+                .
+              </span>
             </span>
           </label>
         </section>

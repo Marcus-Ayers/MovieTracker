@@ -29,7 +29,12 @@ export async function restoreProfileSettings(profile: z.infer<typeof backupProfi
   const db = await getDb();
   await db
     .update(users)
-    .set({ displayName: p.displayName.trim() || user.displayName, visibility: p.visibility, hideWatched: p.hideWatched })
+    .set({
+      displayName: p.displayName.trim() || user.displayName,
+      visibility: p.visibility,
+      hideWatched: p.hideWatched,
+      ...(p.ratePrompt === undefined ? {} : { ratePrompt: p.ratePrompt }),
+    })
     .where(eq(users.id, user.id));
 }
 

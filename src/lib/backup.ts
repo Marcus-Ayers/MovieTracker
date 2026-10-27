@@ -55,6 +55,7 @@ export async function buildBackup(userId: number): Promise<Backup> {
     tags: v.tags,
     importKey: v.importKey,
     createdAt: v.createdAt.toISOString(),
+    skipRating: v.skipRating,
   }));
   const watchlist = stateRows
     .filter(({ s }) => s.onWatchlist)
@@ -67,7 +68,13 @@ export async function buildBackup(userId: number): Promise<Backup> {
     format: BACKUP_FORMAT,
     version: 1,
     exportedAt: new Date().toISOString(),
-    profile: { displayName: user.displayName, username: user.username, visibility: user.visibility, hideWatched: user.hideWatched },
+    profile: {
+      displayName: user.displayName,
+      username: user.username,
+      visibility: user.visibility,
+      hideWatched: user.hideWatched,
+      ratePrompt: user.ratePrompt,
+    },
     titles: [...titleMap.values()],
     diary,
     watchlist,
@@ -239,6 +246,7 @@ export async function restoreBatch(
           watchedWith: d.with,
           tags: d.tags,
           importKey: d.importKey ?? `backup:${d.title}:${d.season ?? "-"}:${d.watchedOn ?? "undated"}:${d.createdAt}`,
+          skipRating: d.skipRating ?? false,
           createdAt: Number.isNaN(createdAt.getTime()) ? new Date() : createdAt,
         })
         .onConflictDoNothing({ target: [viewings.userId, viewings.importKey] })

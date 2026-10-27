@@ -18,6 +18,8 @@ export type CurrentUser = {
   displayName: string;
   visibility: Visibility;
   hideWatched: boolean;
+  /** Pop up new Plex watches to rate. */
+  ratePrompt: boolean;
 };
 
 const userColumns = {
@@ -26,6 +28,7 @@ const userColumns = {
   displayName: users.displayName,
   visibility: users.visibility,
   hideWatched: users.hideWatched,
+  ratePrompt: users.ratePrompt,
 };
 
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;

@@ -33,6 +33,8 @@ export const backupDiaryEntry = z.object({
   tags: z.array(z.string().max(60)).max(30),
   importKey: z.string().max(400).nullable(),
   createdAt: z.string().max(40),
+  // Added later; older backups don't have it.
+  skipRating: z.boolean().optional(),
 });
 
 export const backupWatchlistItem = z.object({ title: z.string().max(40), addedAt: z.string().max(40).nullable() });
@@ -43,6 +45,7 @@ export const backupProfile = z.object({
   username: z.string().max(40),
   visibility: z.enum(["everyone", "friends", "private"]),
   hideWatched: z.boolean(),
+  ratePrompt: z.boolean().optional(),
 });
 
 export const backupSchema = z.object({

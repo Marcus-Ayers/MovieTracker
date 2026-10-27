@@ -1,13 +1,14 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { and, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, userTitles, users, viewings, type DB } from "@/db";
 import { createUser, isSiteAdmin, requireUser, USERNAME_PATTERN, verifyLegacyPassword } from "./auth";
 import type { MediaType } from "./format";
+import { getRateQueue } from "./rate-queue";
 import { cleanReview } from "./reviews";
 import { ensureTitle } from "./title-cache";
 
@@ -91,6 +92,7 @@ const settingsSchema = z.object({
     .regex(USERNAME_PATTERN, "Usernames are 3–24 characters: letters, numbers and underscores."),
   visibility: z.enum(["everyone", "friends", "private"]),
   hideWatched: z.literal("on").optional(),
+  ratePrompt: z.literal("on").optional(),
 });
 
 export async function updateSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -111,6 +113,9 @@ export async function updateSettings(_prev: ActionState, formData: FormData): Pr
         username: parsed.data.username,
         visibility: parsed.data.visibility,
         hideWatched: parsed.data.hideWatched === "on",
+        ratePrompt: parsed.data.ratePrompt === "on",
+        // Turning the pop-up back on starts fresh instead of popping up everything from while it was off.
+        ...(parsed.data.ratePrompt === "on" && !user.ratePrompt ? { ratePromptSeenAt: new Date() } : {}),
       })
       .where(eq(users.id, user.id));
   } catch {
@@ -290,6 +295,52 @@ export async function toggleWatchlist(tmdbId: number, mediaType: MediaType) {
   const next = !current?.onWatchlist;
   await upsertUserTitle(db, user.id, titleId, { onWatchlist: next, watchlistedAt: next ? new Date() : null });
   refreshEverything();
+}
+
+// ---------------------------------------------------------------------------
+// Rating queue (/rate and the new-Plex-watches pop-up)
+// ---------------------------------------------------------------------------
+
+// No revalidatePath here: the queue moves on by itself, and every personal page is rendered fresh per request.
+
+const ratingSchema = z.number().int().min(1).max(10).nullable();
+const idsSchema = z.array(z.number().int().positive()).min(1).max(500);
+
+/** The next batch of the queue, once you've worked through the one the page loaded with. */
+export async function loadRateQueue() {
+  const user = await requireUser("/rate");
+  return getRateQueue(user.id);
+}
+
+/** Rate (or, with null, undo the rating of) one diary entry from the queue. */
+export async function rateFromQueue(viewingId: number, rating: number | null) {
+  const user = await requireUser("/rate");
+  const db = await getDb();
+  await db
+    .update(viewings)
+    .set({ rating: ratingSchema.parse(rating), updatedAt: new Date() })
+    .where(and(eq(viewings.id, z.number().int().positive().parse(viewingId)), eq(viewings.userId, user.id)));
+}
+
+/** "Don't ask about this": keeps a movie or season out of the queue until you log it again. */
+export async function setSkipRating(viewingIds: number[], skip: boolean) {
+  const user = await requireUser("/rate");
+  const db = await getDb();
+  await db
+    .update(viewings)
+    .set({ skipRating: skip })
+    .where(and(inArray(viewings.id, idsSchema.parse(viewingIds)), eq(viewings.userId, user.id)));
+}
+
+/** Closes the new-Plex-watches pop-up: anything synced up to `checkedAt` won't pop up again. */
+export async function dismissRatePrompt(checkedAt: string) {
+  const user = await requireUser();
+  const when = new Date(checkedAt);
+  const db = await getDb();
+  await db
+    .update(users)
+    .set({ ratePromptSeenAt: Number.isNaN(when.getTime()) || when > new Date() ? new Date() : when })
+    .where(eq(users.id, user.id));
 }
 
 // ---------------------------------------------------------------------------

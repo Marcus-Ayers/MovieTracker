@@ -576,6 +576,22 @@ export async function getTvDetails(id: number): Promise<TitleDetails> {
   };
 }
 
+/** The title's Wikidata item (e.g. "Q1129380"), which leads to its Wikipedia article. */
+export async function getWikidataId(media: MediaType, id: number): Promise<string | null> {
+  "use cache";
+  cacheLife("weeks");
+  const raw = await tmdb<{ wikidata_id?: string | null }>(`/${media}/${id}/external_ids`);
+  return raw.wikidata_id || null;
+}
+
+/** One TV season's own summary (TMDB). */
+export async function getSeasonOverview(tvId: number, season: number): Promise<string | null> {
+  "use cache";
+  cacheLife("weeks");
+  const raw = await tmdb<{ overview?: string }>(`/tv/${tvId}/season/${season}`);
+  return raw.overview?.trim() || null;
+}
+
 export function getTitleDetails(media: MediaType, id: number) {
   return media === "movie" ? getMovieDetails(id) : getTvDetails(id);
 }

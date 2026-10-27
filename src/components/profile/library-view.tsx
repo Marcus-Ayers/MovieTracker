@@ -1,3 +1,4 @@
+import { Star } from "lucide-react";
 import Link from "next/link";
 import { FilterBar, RatingFilter, type FilterControl } from "@/components/filter-bar";
 import { PosterCard } from "@/components/media/poster-card";
@@ -5,6 +6,7 @@ import { EmptyState, PageHeader } from "@/components/page";
 import { ProfileTabs, type ProfileViewProps } from "@/components/profile/profile-nav";
 import { formatDate, plural } from "@/lib/format";
 import { getCreditsFor, getLibrary, type LibraryEntry } from "@/lib/library";
+import { getRateQueue } from "@/lib/rate-queue";
 import { MONTHS_LONG } from "@/lib/stats";
 
 const SORTS: { value: string; label: string; compare: (a: LibraryEntry, b: LibraryEntry) => number }[] = [
@@ -67,7 +69,7 @@ export async function LibraryView({ profile, isOwn, base, searchParams }: Profil
       ? Array.from({ length: 11 - Number(params.min) }, (_, i) => String(Number(params.min) + i)).filter((v) => Number(v) <= 10)
       : [];
 
-  const library = await getLibrary(profile.id);
+  const [library, unrated] = await Promise.all([getLibrary(profile.id), isOwn ? getRateQueue(profile.id, 0).then((q) => q.total) : 0]);
   // Director (movies) or creator (TV) for the line under each poster.
   const directorOf = new Map<number, string>();
   for (const c of (await getCreditsFor(library.map((e) => e.title.id), ["director", "creator"])).sort((a, b) => a.order - b.order)) {
@@ -116,7 +118,16 @@ export async function LibraryView({ profile, isOwn, base, searchParams }: Profil
             `${plural(movies, "movie")} · ${plural(library.length - movies, "show")}`
           )
         }
-      />
+      >
+        {unrated > 0 && (
+          <Link
+            href="/rate"
+            className="inline-flex items-center gap-2 rounded bg-gold px-4 py-2 text-sm font-semibold text-black transition hover:bg-gold/85"
+          >
+            <Star className="size-4 fill-black" /> Rate {plural(unrated, "unrated title")}
+          </Link>
+        )}
+      </PageHeader>
       {base && <ProfileTabs profile={profile} base={base} active="library" />}
       <div className="space-y-4 px-4 pb-8 sm:px-8 lg:px-12">
         <FilterBar controls={controls} params={params} />
