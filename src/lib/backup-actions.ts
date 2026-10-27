@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb, users } from "@/db";
 import { requireUser } from "./auth";
-import { restoreBatch, type RestoreResult } from "./backup";
-import { backupDiaryEntry, backupProfile, backupSeenBefore, backupTitle, backupWatchlistItem } from "./backup-format";
+import { restoreBatch, restoreLists, type RestoreResult } from "./backup";
+import { backupDiaryEntry, backupList, backupProfile, backupSeenBefore, backupTitle, backupWatchlistItem } from "./backup-format";
 
 const batchSchema = z.object({
   titles: z.array(backupTitle).max(300),
@@ -20,6 +20,14 @@ export async function restoreBackupBatch(batch: z.infer<typeof batchSchema>): Pr
   const user = await requireUser("/settings/import");
   const db = await getDb();
   return restoreBatch(db, user.id, batchSchema.parse(batch));
+}
+
+/** Restores a few lists at a time, with the titles they use. */
+export async function restoreBackupLists(batch: { lists: z.infer<typeof backupList>[]; titles: z.infer<typeof backupTitle>[] }) {
+  const user = await requireUser("/settings/import");
+  const parsed = z.object({ lists: z.array(backupList).max(20), titles: z.array(backupTitle).max(2000) }).parse(batch);
+  const db = await getDb();
+  return restoreLists(db, user.id, parsed.lists, parsed.titles);
 }
 
 /** Optional: bring back display name, privacy, and the hide-watched preference. */

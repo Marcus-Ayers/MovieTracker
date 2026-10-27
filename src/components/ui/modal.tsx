@@ -25,6 +25,11 @@ export function Modal({
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
+    // Next keeps the page you navigated away from alive in the background. A dialog left open there would
+    // still block the whole screen, so close it when this page is hidden or unmounted.
+    return () => {
+      if (dialog.open) dialog.close();
+    };
   }, [open]);
 
   return (

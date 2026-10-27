@@ -3,8 +3,8 @@ import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import Papa from "papaparse";
 import sanitizeHtml from "sanitize-html";
-import { getDb, titles, userTitles, users, viewings, type DB } from "@/db";
-import { BACKUP_FILE, BACKUP_FORMAT, titleRef, type Backup, type BackupDiaryEntry, type BackupTitle } from "./backup-format";
+import { getDb, listItems, lists, titles, userTitles, users, viewings, type DB } from "@/db";
+import { BACKUP_FILE, BACKUP_FORMAT, titleRef, type Backup, type BackupDiaryEntry, type BackupList, type BackupTitle } from "./backup-format";
 import { mapLimit } from "./import-save";
 import { cleanReview } from "./reviews";
 import { ensureTitle } from "./title-cache";
@@ -15,7 +15,7 @@ import { ensureTitle } from "./title-cache";
 
 export async function buildBackup(userId: number): Promise<Backup> {
   const db = await getDb();
-  const [[user], diaryRows, stateRows] = await Promise.all([
+  const [[user], diaryRows, stateRows, listRows, listItemRows] = await Promise.all([
     db.select().from(users).where(eq(users.id, userId)),
     db
       .select({ v: viewings, t: titles })
@@ -28,6 +28,14 @@ export async function buildBackup(userId: number): Promise<Backup> {
       .from(userTitles)
       .innerJoin(titles, eq(userTitles.titleId, titles.id))
       .where(eq(userTitles.userId, userId)),
+    db.select().from(lists).where(eq(lists.userId, userId)).orderBy(lists.createdAt),
+    db
+      .select({ listId: listItems.listId, tier: listItems.tier, t: titles })
+      .from(listItems)
+      .innerJoin(lists, eq(lists.id, listItems.listId))
+      .innerJoin(titles, eq(titles.id, listItems.titleId))
+      .where(eq(lists.userId, userId))
+      .orderBy(listItems.position),
   ]);
 
   const titleMap = new Map<string, BackupTitle>();
@@ -63,6 +71,15 @@ export async function buildBackup(userId: number): Promise<Backup> {
   const seenBefore = stateRows
     .filter(({ s }) => s.priorWatchCount > 0)
     .map(({ s, t }) => ({ title: addTitle(t), count: s.priorWatchCount }));
+  const userLists: BackupList[] = listRows.map((l) => ({
+    name: l.name,
+    description: l.description,
+    kind: l.kind,
+    ranked: l.ranked,
+    tiers: l.tiers,
+    source: l.source,
+    items: listItemRows.filter((i) => i.listId === l.id).map((i) => ({ title: addTitle(i.t), tier: i.tier })),
+  }));
 
   return {
     format: BACKUP_FORMAT,
@@ -84,6 +101,7 @@ export async function buildBackup(userId: number): Promise<Backup> {
     diary,
     watchlist,
     seenBefore,
+    lists: userLists,
   };
 }
 
@@ -106,7 +124,7 @@ const README = `MovieTracker export
 
 movietracker-backup.json
   Everything: diary (dated and undated), ratings, reviews, likes, rewatches, tags,
-  TV seasons, watchlist, "seen before" counts, and profile settings.
+  TV seasons, watchlist, "seen before" counts, lists and tier lists, and profile settings.
   To restore: Settings → Import → drop this ZIP (or the JSON) onto the page.
   Works on this account (duplicates are skipped) or a brand-new one.
 
@@ -180,6 +198,39 @@ export function backupToZip(backup: Backup) {
 // ---------------------------------------------------------------------------
 
 export type RestoreResult = { added: number; skipped: number; watchlist: number; seenBefore: number; failed: string[] };
+
+/**
+ * Restores lists and tier lists. Safe to repeat: a list you already have (same name and kind) is skipped.
+ * `titles` are the backup's titles these lists use.
+ */
+export async function restoreLists(db: DB, userId: number, backupLists: BackupList[], backupTitles: BackupTitle[]) {
+  let added = 0;
+  const failed: string[] = [];
+  const existing = await db.select({ name: lists.name, kind: lists.kind }).from(lists).where(eq(lists.userId, userId));
+  const titleIds = new Map<string, number>();
+  await mapLimit(backupTitles, 6, async (t) => {
+    try {
+      titleIds.set(t.ref, await ensureTitle(db, t.tmdbId, t.mediaType));
+    } catch {
+      failed.push(t.title);
+    }
+  });
+  for (const l of backupLists) {
+    if (existing.some((e) => e.name === l.name && e.kind === l.kind)) continue;
+    const tierIds = new Set(l.tiers.map((t) => t.id));
+    const [row] = await db
+      .insert(lists)
+      .values({ userId, name: l.name, description: l.description, kind: l.kind, ranked: l.ranked, tiers: l.tiers, source: l.source })
+      .returning({ id: lists.id });
+    const seen = new Set<number>();
+    const items = l.items
+      .map((i, position) => ({ titleId: titleIds.get(i.title), tier: i.tier && tierIds.has(i.tier) ? i.tier : null, position }))
+      .filter((i): i is { titleId: number; tier: string | null; position: number } => i.titleId !== undefined && !seen.has(i.titleId) && Boolean(seen.add(i.titleId)));
+    if (items.length) await db.insert(listItems).values(items.map((i) => ({ listId: row.id, ...i })));
+    added++;
+  }
+  return { added, failed };
+}
 
 /**
  * Merges part of a backup into an account. Safe to repeat: a diary entry is skipped when the account already has

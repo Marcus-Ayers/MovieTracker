@@ -19,6 +19,7 @@ export const mediaTypeEnum = pgEnum("media_type", ["movie", "tv"]);
 export const visibilityEnum = pgEnum("visibility", ["everyone", "friends", "private"]);
 export const creditRoleEnum = pgEnum("credit_role", ["director", "writer", "creator", "cast"]);
 export const friendshipStatusEnum = pgEnum("friendship_status", ["pending", "accepted"]);
+export const listKindEnum = pgEnum("list_kind", ["list", "tier"]);
 
 export type Genre = { id: number; name: string };
 export type SeasonInfo = {
@@ -264,6 +265,50 @@ export const friendships = pgTable(
   (t) => [primaryKey({ columns: [t.requesterId, t.addresseeId] }), index("friendships_addressee_idx").on(t.addresseeId)],
 );
 
+/** A tier on a tier list. `id` stays the same when you rename it. */
+export type Tier = { id: string; label: string; color: string };
+
+/** Your own lists ("Best heist movies") and tier lists. They follow your profile's privacy setting. */
+export const lists = pgTable(
+  "lists",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: listKindEnum("kind").notNull().default("list"),
+    name: text("name").notNull(),
+    description: text("description"),
+    // Lists only: show 1, 2, 3… next to each title.
+    ranked: boolean("ranked").notNull().default(false),
+    // Tier lists only, top tier first.
+    tiers: jsonb("tiers").$type<Tier[]>().notNull().default([]),
+    // The featured list this was copied from ("nolan-ranked"), if any.
+    source: text("source"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("lists_user_idx").on(t.userId)],
+);
+
+export const listItems = pgTable(
+  "list_items",
+  {
+    listId: integer("list_id")
+      .notNull()
+      .references(() => lists.id, { onDelete: "cascade" }),
+    titleId: integer("title_id")
+      .notNull()
+      .references(() => titles.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    // Tier lists: the Tier.id it's in; null = not placed yet.
+    tier: text("tier"),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.listId, t.titleId] })],
+);
+
 export type Title = typeof titles.$inferSelect;
 export type Viewing = typeof viewings.$inferSelect;
+export type List = typeof lists.$inferSelect;
 export type Visibility = (typeof visibilityEnum.enumValues)[number];

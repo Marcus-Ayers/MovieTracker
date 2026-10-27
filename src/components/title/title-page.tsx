@@ -17,6 +17,7 @@ import {
   tmdbImage,
 } from "@/lib/format";
 import { getVisibleFriendIds } from "@/lib/friends";
+import { getListsWithTitle } from "@/lib/lists";
 import { getPublicTakes, getTakesBy, getTitleState, historyFor, type PublicTake } from "@/lib/library";
 import { getExternalRatings } from "@/lib/ratings";
 import {
@@ -27,6 +28,7 @@ import {
   type TitleDetails,
 } from "@/lib/tmdb";
 import { DynamicMarker } from "../dynamic-marker";
+import { AddToListMenu } from "../lists/list-controls";
 import { LogButton, type LogTarget, type ViewingDraft } from "../log/log-button";
 import { MissingKey } from "../missing-key";
 import { MyRatingBadge, PosterCard } from "../media/poster-card";
@@ -429,7 +431,10 @@ function DetailsList({ details: d }: { details: TitleDetails }) {
 async function TitleActions({ target }: { target: LogTarget }) {
   const user = await getCurrentUser();
   if (!user) return null;
-  const state = await getTitleState(user.id, target.tmdbId, target.mediaType);
+  const [state, lists] = await Promise.all([
+    getTitleState(user.id, target.tmdbId, target.mediaType),
+    getListsWithTitle(user.id, target.tmdbId, target.mediaType),
+  ]);
   return (
     <>
       <LogButton
@@ -441,6 +446,7 @@ async function TitleActions({ target }: { target: LogTarget }) {
         {state.entry ? "Log again" : "Log"}
       </LogButton>
       <WatchlistButton tmdbId={target.tmdbId} mediaType={target.mediaType} onWatchlist={state.onWatchlist} />
+      <AddToListMenu tmdbId={target.tmdbId} mediaType={target.mediaType} lists={lists} />
       {state.entry && (
         <span className="flex items-center gap-2 text-sm text-muted">
           {state.entry.rating !== null && <MyRatingBadge rating={state.entry.rating} className="text-sm" />}

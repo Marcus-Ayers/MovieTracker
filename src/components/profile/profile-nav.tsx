@@ -36,13 +36,14 @@ export async function openProfile(params: Promise<{ username: string }>): Promis
   return { view: { profile: access.profile, isOwn: access.isOwn, base: profileBase(access.profile.username) } };
 }
 
-export type ProfileSection = "library" | "diary" | "stats" | "watchlist";
+export type ProfileSection = "library" | "diary" | "stats" | "watchlist" | "lists";
 
 const SECTIONS: { value: ProfileSection; label: string }[] = [
   { value: "library", label: "Library" },
   { value: "diary", label: "Diary" },
   { value: "stats", label: "Stats" },
   { value: "watchlist", label: "Watchlist" },
+  { value: "lists", label: "Lists" },
 ];
 
 /** Add friend / Requested / Friends on someone else's profile, when you both have social features on. */

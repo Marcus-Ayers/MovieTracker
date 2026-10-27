@@ -56,6 +56,7 @@ src/
   lib/actions.ts       Everything that saves data (log, edit, delete, watchlist, settings)
   components/profile/  Library, diary, stats and watchlist views (yours at /library…, others' at /u/<username>/…)
   lib/auth.ts          Clerk sign-in → accounts on this site, and profile privacy
+  lib/curated.ts       The featured lists and tier lists on /lists (TMDB ids, checked by hand)
 drizzle/               SQL migrations
 ```
 

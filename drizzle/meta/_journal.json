@@ -71,6 +71,13 @@
       "when": 1793133820077,
       "tag": "0009_friends",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793135168655,
+      "tag": "0010_lists",
+      "breakpoints": true
     }
   ]
 }

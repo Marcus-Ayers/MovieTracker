@@ -4,7 +4,7 @@ import { ArchiveRestore, Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { strFromU8, unzipSync } from "fflate";
-import { finishRestore, restoreBackupBatch, restoreProfileSettings } from "@/lib/backup-actions";
+import { finishRestore, restoreBackupBatch, restoreBackupLists, restoreProfileSettings } from "@/lib/backup-actions";
 import { BACKUP_FILE, backupSchema, type Backup } from "@/lib/backup-format";
 import { formatDate, plural } from "@/lib/format";
 
@@ -59,7 +59,7 @@ function slices(backup: Backup) {
   return out;
 }
 
-type Totals = { added: number; skipped: number; watchlist: number; seenBefore: number; failed: string[] };
+type Totals = { added: number; skipped: number; watchlist: number; seenBefore: number; lists: number; failed: string[] };
 
 export function RestorePanel({ backup, onCancel }: { backup: Backup; onCancel: () => void }) {
   const [withSettings, setWithSettings] = useState(false);
@@ -74,9 +74,10 @@ export function RestorePanel({ backup, onCancel }: { backup: Backup; onCancel: (
   const restore = async () => {
     setError(null);
     const parts = slices(backup);
-    const sum: Totals = { added: 0, skipped: 0, watchlist: 0, seenBefore: 0, failed: [] };
+    const sum: Totals = { added: 0, skipped: 0, watchlist: 0, seenBefore: 0, lists: 0, failed: [] };
     const units = (p: (typeof parts)[number]) => p.diary.length + p.watchlist.length + p.seenBefore.length;
-    const total = parts.reduce((n, p) => n + units(p), 0);
+    const backupLists = backup.lists ?? [];
+    const total = parts.reduce((n, p) => n + units(p), 0) + backupLists.length;
     let done = 0;
     setProgress({ done, total });
     try {
@@ -88,6 +89,16 @@ export function RestorePanel({ backup, onCancel }: { backup: Backup; onCancel: (
         sum.seenBefore += r.seenBefore;
         sum.failed.push(...r.failed);
         done += units(part);
+        setProgress({ done, total });
+      }
+      const byRef = new Map(backup.titles.map((t) => [t.ref, t]));
+      for (let i = 0; i < backupLists.length; i += 10) {
+        const chunk = backupLists.slice(i, i + 10);
+        const refs = new Set(chunk.flatMap((l) => l.items.map((it) => it.title)));
+        const r = await restoreBackupLists({ lists: chunk, titles: [...refs].map((ref) => byRef.get(ref)).filter((t) => t !== undefined) });
+        sum.lists += r.added;
+        sum.failed.push(...r.failed);
+        done += chunk.length;
         setProgress({ done, total });
       }
       if (withSettings) await restoreProfileSettings(backup.profile);
@@ -111,6 +122,7 @@ export function RestorePanel({ backup, onCancel }: { backup: Backup; onCancel: (
         <p className="mt-1 text-sm text-muted">
           {totals.skipped > 0 && `${plural(totals.skipped, "entry was", "entries were")} already here and skipped. `}
           {totals.watchlist > 0 && `${plural(totals.watchlist, "watchlist title")} restored. `}
+          {totals.lists > 0 && `${plural(totals.lists, "list")} restored. `}
           {totals.failed.length > 0 &&
             `${plural(totals.failed.length, "title")} couldn't be loaded from TMDB: ${totals.failed.slice(0, 5).join(", ")}${totals.failed.length > 5 ? "…" : ""}`}
         </p>
@@ -152,6 +164,11 @@ export function RestorePanel({ backup, onCancel }: { backup: Backup; onCancel: (
         <li>
           <span className="font-semibold">{backup.watchlist.length.toLocaleString()}</span> on the watchlist
         </li>
+        {(backup.lists?.length ?? 0) > 0 && (
+          <li>
+            <span className="font-semibold">{backup.lists!.length.toLocaleString()}</span> lists &amp; tier lists
+          </li>
+        )}
         {backup.seenBefore.length > 0 && (
           <li>
             <span className="font-semibold">{backup.seenBefore.length.toLocaleString()}</span> &ldquo;seen before&rdquo; counts

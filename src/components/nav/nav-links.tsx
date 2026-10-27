@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/diary", label: "Diary" },
   { href: "/stats", label: "Stats" },
   { href: "/watchlist", label: "Watchlist" },
+  { href: "/lists", label: "Lists" },
 ];
 
 function Links({ pathname }: { pathname: string | null }) {

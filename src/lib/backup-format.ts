@@ -53,6 +53,17 @@ export const backupProfile = z.object({
   friendRequests: z.boolean().optional(),
 });
 
+export const backupList = z.object({
+  name: z.string().max(100),
+  description: z.string().max(1000).nullable(),
+  kind: z.enum(["list", "tier"]),
+  ranked: z.boolean(),
+  tiers: z.array(z.object({ id: z.string().max(20), label: z.string().max(20), color: z.string().max(9) })).max(12),
+  source: z.string().max(60).nullable(),
+  // In order; `tier` is a tier id on tier lists (null = not ranked yet).
+  items: z.array(z.object({ title: z.string().max(40), tier: z.string().max(20).nullable() })).max(500),
+});
+
 export const backupSchema = z.object({
   format: z.literal(BACKUP_FORMAT),
   version: z.literal(1),
@@ -62,10 +73,13 @@ export const backupSchema = z.object({
   diary: z.array(backupDiaryEntry),
   watchlist: z.array(backupWatchlistItem),
   seenBefore: z.array(backupSeenBefore),
+  // Added later; older backups don't have lists.
+  lists: z.array(backupList).optional(),
 });
 
 export type Backup = z.infer<typeof backupSchema>;
 export type BackupTitle = z.infer<typeof backupTitle>;
 export type BackupDiaryEntry = z.infer<typeof backupDiaryEntry>;
+export type BackupList = z.infer<typeof backupList>;
 
 export const titleRef = (mediaType: "movie" | "tv", tmdbId: number) => `${mediaType}-${tmdbId}`;
