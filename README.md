@@ -35,6 +35,15 @@ Locally, the database is an embedded Postgres (PGlite) stored in `.data/`. There
 | `npm run db:generate` | Create a migration after changing `src/db/schema.ts` |
 | `npm run db:migrate` | Apply migrations to `DATABASE_URL` (production) |
 
+## Deploying (Vercel + Neon)
+
+1. Push to GitHub, then on vercel.com: **Add New → Project → import the repo**. Before deploying, add the environment variables from `.env.example` (everything except `DATABASE_URL`), plus `CRON_SECRET` (`openssl rand -hex 32`).
+2. In the Vercel project: **Storage → Create → Neon (Postgres)**, connected to all environments. This sets `DATABASE_URL`.
+3. **Redeploy.** Every build runs `npm run vercel-build`, which applies database migrations before `next build`.
+4. On the live site: sign in (the first sign-in becomes the owner), then **Settings → Import** your local export ZIP, reconnect Plex, and hit **Ratings data → Update now**.
+
+Clerk's production keys need a domain you own; development keys work on `*.vercel.app`.
+
 ## Where things live
 
 ```
