@@ -2,12 +2,14 @@
 
 import { SignOutButton, useClerk } from "@clerk/nextjs";
 import { Download, Globe, Lock, ShieldCheck, Upload, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { Visibility } from "@/db/schema";
 import { updateSettings, type ActionState } from "@/lib/actions";
-import { cn } from "@/lib/format";
+import { cn, tmdbImage } from "@/lib/format";
 import { submitTo } from "@/lib/forms";
+import type { WatchProvider } from "@/lib/tmdb";
 
 const VISIBILITY: { value: Visibility; label: string; description: string; icon: React.ReactNode }[] = [
   {
@@ -26,14 +28,23 @@ export function SettingsForm({
   visibility,
   hideWatched,
   ratePrompt,
+  streamingServices,
+  serviceChoices,
 }: {
   displayName: string;
   username: string;
   visibility: Visibility;
   hideWatched: boolean;
   ratePrompt: boolean;
+  streamingServices: number[];
+  serviceChoices: { featured: WatchProvider[]; others: WatchProvider[] } | null;
 }) {
   const [state, action, pending] = useActionState(updateSettings, { ok: false } as ActionState);
+  const [allServices, setAllServices] = useState(false);
+  // The big services first; the rest stay in the form (hidden) so ticked ones are still saved.
+  const services = serviceChoices ? [...serviceChoices.featured, ...serviceChoices.others] : [];
+  const featuredCount = serviceChoices?.featured.length ?? 0;
+  const showService = (id: number, i: number) => allServices || i < featuredCount || streamingServices.includes(id);
   const clerk = useClerk();
   return (
     <div className="max-w-2xl space-y-10">
@@ -113,6 +124,28 @@ export function SettingsForm({
             </span>
           </label>
         </section>
+
+        {services.length > 0 && (
+          <section id="services" className="scroll-mt-24 rounded-xl border border-line bg-surface p-6">
+            <h2 className="mb-1 font-semibold">Your streaming services</h2>
+            <p className="mb-4 text-sm text-muted">Pick the ones you pay for. Your watchlist can then show only what you can watch right now.</p>
+            <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
+              {services.map((p, i) => (
+                <label key={p.id} title={p.name} className={cn("relative block aspect-square cursor-pointer", !showService(p.id, i) && "hidden")}>
+                  <input type="checkbox" name="services" value={p.id} defaultChecked={streamingServices.includes(p.id)} className="peer sr-only" />
+                  <span className="absolute inset-0 overflow-hidden rounded-lg opacity-50 ring-2 ring-transparent transition hover:opacity-90 peer-checked:opacity-100 peer-checked:ring-accent peer-focus-visible:ring-fg">
+                    <Image src={tmdbImage(p.logoPath, "w92")!} alt={p.name} fill sizes="64px" />
+                  </span>
+                </label>
+              ))}
+            </div>
+            {services.length > featuredCount && (
+              <button type="button" onClick={() => setAllServices((v) => !v)} className="mt-3 text-sm text-muted hover:text-fg">
+                {allServices ? "Show fewer" : `Show all ${services.length} services`}
+              </button>
+            )}
+          </section>
+        )}
 
         <section className="rounded-xl border border-line bg-surface p-6">
           <h2 className="mb-4 font-semibold">Rating</h2>

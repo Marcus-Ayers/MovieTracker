@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { apiUsage, externalRatings, getDb, imdbRatings, jobRuns, titles, type DB } from "@/db";
 
 /**
@@ -97,6 +97,22 @@ async function saveOmdb(db: DB, imdbId: string, result: Exclude<OmdbResult, "lim
 const inFlight = new Map<string, Promise<void>>();
 
 /** IMDb + Rotten Tomatoes + Metacritic for one title. Uses saved data; only calls OMDb for titles it has never seen. */
+/** IMDb ratings for many titles at once, from what's already saved (no API calls). */
+export async function getSavedImdbScores(imdbIds: string[]): Promise<Map<string, number>> {
+  const ids = [...new Set(imdbIds)];
+  if (!ids.length) return new Map();
+  const db = await getDb();
+  const [fromFile, fromOmdb] = await Promise.all([
+    db.select({ id: imdbRatings.tconst, rating: imdbRatings.rating }).from(imdbRatings).where(inArray(imdbRatings.tconst, ids)),
+    db.select({ id: externalRatings.imdbId, rating: externalRatings.imdb }).from(externalRatings).where(inArray(externalRatings.imdbId, ids)),
+  ]);
+  const scores = new Map<string, number>();
+  for (const r of fromOmdb) if (r.rating && !Number.isNaN(Number(r.rating))) scores.set(r.id, Number(r.rating));
+  // IMDb's own daily file wins over OMDb's copy.
+  for (const r of fromFile) scores.set(r.id, r.rating);
+  return scores;
+}
+
 export async function getExternalRatings(imdbId: string | null): Promise<ExternalRatings | null> {
   if (!imdbId) return null;
   const db = await getDb();

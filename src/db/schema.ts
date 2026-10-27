@@ -42,6 +42,8 @@ export const users = pgTable("users", {
   ratePrompt: boolean("rate_prompt").notNull().default(true),
   // Plex watches synced after this have not been shown in that pop-up yet.
   ratePromptSeenAt: timestamp("rate_prompt_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  // TMDB watch-provider ids of the streaming services you pay for (Netflix = 8, …).
+  streamingServices: jsonb("streaming_services").$type<number[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

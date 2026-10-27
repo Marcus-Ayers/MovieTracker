@@ -57,6 +57,13 @@
       "when": 1793131040086,
       "tag": "0007_rate_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793132292430,
+      "tag": "0008_streaming_services",
+      "breakpoints": true
     }
   ]
 }

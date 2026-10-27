@@ -52,6 +52,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               borderRadius: "0.5rem",
               fontFamily: "var(--font-geist-sans)",
             },
+            // Deleting an account happens in Settings, which also removes the diary; hide Clerk's own delete button.
+            elements: { profileSection__danger: { display: "none" } },
           }}
         >
           <SiteHeader />

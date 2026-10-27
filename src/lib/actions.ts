@@ -1,11 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { and, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getDb, userTitles, users, viewings, type DB } from "@/db";
+import { getDb, plexConnections, plexItems, userTitles, users, viewings, type DB } from "@/db";
 import { createUser, isSiteAdmin, requireUser, USERNAME_PATTERN, verifyLegacyPassword } from "./auth";
 import type { MediaType } from "./format";
 import { getRateQueue } from "./rate-queue";
@@ -99,6 +99,8 @@ export async function updateSettings(_prev: ActionState, formData: FormData): Pr
   const user = await requireUser("/settings");
   const parsed = settingsSchema.safeParse(fields(formData));
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) };
+  // Checkboxes named "services", one per ticked streaming service.
+  const services = [...new Set(formData.getAll("services").map(Number))].filter((id) => Number.isInteger(id) && id > 0).slice(0, 100);
   const db = await getDb();
   const [taken] = await db
     .select({ id: users.id })
@@ -114,6 +116,7 @@ export async function updateSettings(_prev: ActionState, formData: FormData): Pr
         visibility: parsed.data.visibility,
         hideWatched: parsed.data.hideWatched === "on",
         ratePrompt: parsed.data.ratePrompt === "on",
+        streamingServices: services,
         // Turning the pop-up back on starts fresh instead of popping up everything from while it was off.
         ...(parsed.data.ratePrompt === "on" && !user.ratePrompt ? { ratePromptSeenAt: new Date() } : {}),
       })
@@ -124,6 +127,39 @@ export async function updateSettings(_prev: ActionState, formData: FormData): Pr
   }
   refreshEverything();
   return { ok: true, savedAt: Date.now() };
+}
+
+/**
+ * Deletes the account: diary, ratings, reviews, watchlist, Plex connection (all removed with the user row),
+ * then the Clerk sign-in itself. Asks for the username as confirmation. Nothing is revalidated here on purpose:
+ * re-rendering a page now would see the still-valid session and make a fresh empty account. The browser
+ * signs out next.
+ */
+export async function deleteAccount(confirmation: string): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser("/settings");
+  if (confirmation.trim().toLowerCase() !== user.username) return { ok: false, error: `Type ${user.username} to confirm.` };
+  const { userId: clerkId } = await auth();
+  const db = await getDb();
+
+  // Plex's item lookup cache is per server; drop it unless someone else uses the same server.
+  const [plex] = await db.select({ serverId: plexConnections.serverId }).from(plexConnections).where(eq(plexConnections.userId, user.id));
+  if (plex?.serverId) {
+    const shared = await db
+      .select({ userId: plexConnections.userId })
+      .from(plexConnections)
+      .where(and(eq(plexConnections.serverId, plex.serverId), ne(plexConnections.userId, user.id)));
+    if (!shared.length) await db.delete(plexItems).where(eq(plexItems.serverId, plex.serverId));
+  }
+  await db.delete(users).where(eq(users.id, user.id));
+
+  if (clerkId) {
+    try {
+      await (await clerkClient()).users.deleteUser(clerkId);
+    } catch {
+      return { ok: false, error: "Your data is deleted, but your sign-in couldn't be removed. Sign in again later and repeat this to remove it." };
+    }
+  }
+  return { ok: true };
 }
 
 export async function setHideWatched(hide: boolean) {

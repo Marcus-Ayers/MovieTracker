@@ -23,6 +23,9 @@ export type RateItem = {
   overview: string | null;
   runtime: number | null;
   genres: string[];
+  /** TMDB's average; IMDb, Rotten Tomatoes and Metacritic load with the plot. */
+  tmdbScore: number | null;
+  imdbId: string | null;
   makers: { label: string; names: string[] } | null;
   cast: string[];
   watchCount: number;
@@ -98,6 +101,8 @@ async function toItems(groups: Group[]): Promise<RateItem[]> {
       overview: t.overview,
       runtime: t.runtime,
       genres: t.genres.map((g) => g.name),
+      tmdbScore: t.voteAverage || null,
+      imdbId: t.imdbId,
       makers: makers.length ? { label: t.mediaType === "movie" ? "Directed by" : "Created by", names: makers } : null,
       cast: namesFor(t.id, "cast", 4),
       watchCount: viewings.length,

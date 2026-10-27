@@ -20,6 +20,8 @@ export type CurrentUser = {
   hideWatched: boolean;
   /** Pop up new Plex watches to rate. */
   ratePrompt: boolean;
+  /** TMDB provider ids of your streaming services. */
+  streamingServices: number[];
 };
 
 const userColumns = {
@@ -29,6 +31,7 @@ const userColumns = {
   visibility: users.visibility,
   hideWatched: users.hideWatched,
   ratePrompt: users.ratePrompt,
+  streamingServices: users.streamingServices,
 };
 
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
@@ -49,13 +52,15 @@ async function freeUsername(db: DB, handle: string) {
 }
 
 /** Creates this site's account for a Clerk sign-in. New accounts start private. */
-export async function createUser(db: DB, clerkId: string): Promise<CurrentUser> {
-  const profile = await currentUser();
-  const email = profile?.primaryEmailAddress?.emailAddress ?? "";
+export async function createUser(db: DB, clerkId: string): Promise<CurrentUser | null> {
+  // Null when the Clerk account no longer exists (e.g. it was just deleted and the session hasn't ended yet).
+  const profile = await currentUser().catch(() => null);
+  if (!profile) return null;
+  const email = profile.primaryEmailAddress?.emailAddress ?? "";
   // "marcus+movies@gmail.com" → "marcus"
-  let handle = toHandle(profile?.username || email.split("@")[0].split("+")[0]);
+  let handle = toHandle(profile.username || email.split("@")[0].split("+")[0]);
   if (handle.length < 3) handle = `user${handle}`;
-  const displayName = (profile?.firstName || profile?.username || handle).slice(0, 60);
+  const displayName = (profile.firstName || profile.username || handle).slice(0, 60);
   for (let attempt = 0; attempt < 5; attempt++) {
     const username = await freeUsername(db, handle);
     const [row] = await db

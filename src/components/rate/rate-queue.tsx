@@ -4,38 +4,43 @@ import { BookOpen, EyeOff, PenLine, SkipForward, Undo2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useState, useTransition } from "react";
-import type { PlotResponse } from "@/app/api/plot/route";
+import type { RateExtras } from "@/app/api/rate-extras/route";
 import { loadRateQueue, rateFromQueue, setSkipRating } from "@/lib/actions";
 import { cn, formatDate, formatRuntime, plural, titleHref, tmdbImage } from "@/lib/format";
 import type { RateItem } from "@/lib/rate-queue";
 import { LogDialog } from "../log/log-button";
+import { ScoreBadges } from "../media/score-badges";
 import { RATING_WORDS } from "../log/rating-picker";
 
 // ---------------------------------------------------------------------------
-// Plots: fetched once per title, and a couple of cards ahead so the next one is instant.
+// Plot + scores: fetched once per title, and a couple of cards ahead so the next one is instant.
 // ---------------------------------------------------------------------------
 
-const plotUrl = (item: RateItem) =>
-  `/api/plot?type=${item.mediaType}&id=${item.tmdbId}${item.seasonNumber !== null ? `&season=${item.seasonNumber}` : ""}`;
+const extrasUrl = (item: RateItem) => {
+  const q = new URLSearchParams({ type: item.mediaType, id: String(item.tmdbId) });
+  if (item.seasonNumber !== null) q.set("season", String(item.seasonNumber));
+  if (item.imdbId) q.set("imdb", item.imdbId);
+  return `/api/rate-extras?${q}`;
+};
 
-const plots = new Map<string, Promise<PlotResponse | null>>();
+const extras = new Map<string, Promise<RateExtras | null>>();
 
-function fetchPlot(url: string) {
-  let pending = plots.get(url);
+function fetchExtras(url: string) {
+  let pending = extras.get(url);
   if (!pending) {
     pending = fetch(url)
-      .then((res) => (res.ok ? (res.json() as Promise<PlotResponse>) : null))
+      .then((res) => (res.ok ? (res.json() as Promise<RateExtras>) : null))
       .catch(() => null);
-    plots.set(url, pending);
+    extras.set(url, pending);
   }
   return pending;
 }
 
-function usePlot(url: string) {
-  const [loaded, setLoaded] = useState<{ url: string; data: PlotResponse | null } | null>(null);
+function useExtras(url: string) {
+  const [loaded, setLoaded] = useState<{ url: string; data: RateExtras | null } | null>(null);
   useEffect(() => {
     let live = true;
-    fetchPlot(url).then((data) => {
+    fetchExtras(url).then((data) => {
       if (live) setLoaded({ url, data });
     });
     return () => {
@@ -47,7 +52,7 @@ function usePlot(url: string) {
 
 function preload(item: RateItem | undefined) {
   if (!item) return;
-  void fetchPlot(plotUrl(item));
+  void fetchExtras(extrasUrl(item));
   const poster = tmdbImage(item.posterPath, "w500");
   if (poster) new window.Image().src = poster;
 }
@@ -57,7 +62,7 @@ function preload(item: RateItem | undefined) {
 // ---------------------------------------------------------------------------
 
 function PlotBox({ url, compact }: { url: string; compact: boolean }) {
-  const { loading, data } = usePlot(url);
+  const { loading, data } = useExtras(url);
   if (!loading && !data?.plot) return null;
   return (
     <section className="mt-5 overflow-hidden rounded-lg border border-line bg-bg/60">
@@ -91,7 +96,7 @@ function PlotBox({ url, compact }: { url: string; compact: boolean }) {
 
 function RateCard({ item, compact }: { item: RateItem; compact: boolean }) {
   const poster = tmdbImage(item.posterPath, "w500");
-  const { data } = usePlot(plotUrl(item));
+  const { data } = useExtras(extrasUrl(item));
   const watched = [
     item.lastWatched ? `Watched ${formatDate(item.lastWatched)}` : "Watched, date unknown",
     item.watchedWhere,
@@ -130,10 +135,11 @@ function RateCard({ item, compact }: { item: RateItem; compact: boolean }) {
             Starring <span className="text-fg">{item.cast.join(", ")}</span>
           </p>
         )}
+        <ScoreBadges tmdb={item.tmdbScore} ratings={data?.ratings ?? null} className="mt-3" />
         {(data?.seasonOverview ?? item.overview) && (
           <p className={cn("mt-4 leading-relaxed text-fg/85", compact && "line-clamp-4 text-sm")}>{data?.seasonOverview ?? item.overview}</p>
         )}
-        <PlotBox url={plotUrl(item)} compact={compact} />
+        <PlotBox url={extrasUrl(item)} compact={compact} />
       </div>
     </div>
   );

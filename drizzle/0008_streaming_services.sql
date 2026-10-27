@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "streaming_services" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -2,6 +2,7 @@ import "server-only";
 import { cacheLife } from "next/cache";
 import type { Genre, SeasonInfo } from "@/db/schema";
 import type { MediaType } from "./format";
+import { FEATURED_SERVICES } from "./services";
 
 const API = "https://api.themoviedb.org/3";
 
@@ -350,7 +351,7 @@ type RawCrew = RawPerson & { job: string; department: string };
 type RawCast = RawPerson & { character?: string; order?: number };
 type RawAggregateCast = RawPerson & { roles?: { character: string; episode_count: number }[]; total_episode_count?: number };
 type RawProviders = {
-  results?: Record<string, { link?: string; flatrate?: RawProvider[]; rent?: RawProvider[]; buy?: RawProvider[] }>;
+  results?: Record<string, { link?: string; flatrate?: RawProvider[]; free?: RawProvider[]; ads?: RawProvider[]; rent?: RawProvider[]; buy?: RawProvider[] }>;
 };
 type RawProvider = { provider_id: number; provider_name: string; logo_path: string; display_priority: number };
 type RawVideo = { key: string; name: string; site: string; type: string; official: boolean };
@@ -574,6 +575,28 @@ export async function getTvDetails(id: number): Promise<TitleDetails> {
     lastAirDate: raw.last_air_date || null,
     inProduction: raw.in_production ?? false,
   };
+}
+
+/** Services a title streams on in the US: by subscription, free, or free with ads. */
+export async function getStreamingProviders(media: MediaType, id: number): Promise<WatchProvider[]> {
+  "use cache";
+  cacheLife("days");
+  const us = (await tmdb<RawProviders>(`/${media}/${id}/watch/providers`)).results?.US;
+  const all = [...(us?.flatrate ?? []), ...(us?.free ?? []), ...(us?.ads ?? [])].sort((a, b) => a.display_priority - b.display_priority);
+  const seen = new Set<number>();
+  return all
+    .filter((p) => !seen.has(p.provider_id) && seen.add(p.provider_id))
+    .map((p) => ({ id: p.provider_id, name: p.provider_name, logoPath: p.logo_path }));
+}
+
+/** Streaming services to choose from in Settings: the big ones first (see services.ts), then everything else. */
+export async function getStreamingServiceChoices(): Promise<{ featured: WatchProvider[]; others: WatchProvider[] }> {
+  const [movie, tv] = await Promise.all([getWatchProviders("movie"), getWatchProviders("tv")]);
+  const seen = new Set<number>();
+  const all = [...movie, ...tv].filter((p) => !seen.has(p.id) && seen.add(p.id));
+  const byId = new Map(all.map((p) => [p.id, p]));
+  const featured = FEATURED_SERVICES.map((id) => byId.get(id)).filter((p): p is WatchProvider => Boolean(p));
+  return { featured, others: all.filter((p) => !FEATURED_SERVICES.includes(p.id)) };
 }
 
 /** The title's Wikidata item (e.g. "Q1129380"), which leads to its Wikipedia article. */

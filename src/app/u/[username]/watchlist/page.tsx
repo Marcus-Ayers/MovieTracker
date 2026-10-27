@@ -10,16 +10,16 @@ export async function generateMetadata(props: PageProps<"/u/[username]/watchlist
   return { title: `@${username} · Watchlist` };
 }
 
-async function ProfileWatchlist({ params }: Pick<PageProps<"/u/[username]/watchlist">, "params">) {
+async function ProfileWatchlist({ params, searchParams }: PageProps<"/u/[username]/watchlist">) {
   const result = await openProfile(params);
-  return "notice" in result ? result.notice : <WatchlistView {...result.view} />;
+  return "notice" in result ? result.notice : <WatchlistView {...result.view} searchParams={searchParams} />;
 }
 
 export default function ProfileWatchlistPage(props: PageProps<"/u/[username]/watchlist">) {
   return (
     <>
       <Suspense fallback={<PageSkeleton />}>
-        <ProfileWatchlist params={props.params} />
+        <ProfileWatchlist params={props.params} searchParams={props.searchParams} />
       </Suspense>
       <DynamicMarker />
     </>

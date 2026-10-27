@@ -30,6 +30,7 @@ import { LogButton, type LogTarget, type ViewingDraft } from "../log/log-button"
 import { MissingKey } from "../missing-key";
 import { MyRatingBadge, PosterCard } from "../media/poster-card";
 import { PosterRow } from "../media/rows";
+import { ScoreBadges } from "../media/score-badges";
 import { ScrollRow } from "../media/scroll-row";
 import { ReviewBody } from "./review-body";
 import { DeleteViewingButton, MainReviewButton, PriorWatchCounter, WatchlistButton } from "./title-buttons";
@@ -171,31 +172,7 @@ async function TitleContent({ mediaType, params }: { mediaType: MediaType; param
               <span className="text-muted">{d.genres.map((g) => g.name).join(" · ")}</span>
             </div>
 
-            <div className="mb-5 flex flex-wrap items-center gap-2">
-              {d.voteAverage > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded bg-black/50 px-2.5 py-1 text-sm backdrop-blur">
-                  <Star className="size-4 fill-gold text-gold" />
-                  <span className="font-bold">{d.voteAverage.toFixed(1)}</span>
-                  <span className="text-xs text-muted">TMDB · {d.voteCount.toLocaleString()} votes</span>
-                </span>
-              )}
-              {ratings?.imdb && (
-                <span className="inline-flex items-center gap-1.5 rounded bg-black/50 px-2.5 py-1 text-sm backdrop-blur">
-                  <span className="rounded-sm bg-gold px-1 text-[11px] font-black text-black">IMDb</span>
-                  <span className="font-bold">{ratings.imdb}</span>
-                </span>
-              )}
-              {ratings?.rottenTomatoes && (
-                <span className="rounded bg-black/50 px-2.5 py-1 text-sm backdrop-blur">
-                  🍅 <span className="font-bold">{ratings.rottenTomatoes}</span>
-                </span>
-              )}
-              {ratings?.metacritic && (
-                <span className="rounded bg-black/50 px-2.5 py-1 text-sm backdrop-blur">
-                  <span className="text-xs text-muted">Metacritic</span> <span className="font-bold">{ratings.metacritic.split("/")[0]}</span>
-                </span>
-              )}
-            </div>
+            <ScoreBadges tmdb={d.voteAverage || null} votes={d.voteCount} ratings={ratings} className="mb-5" />
 
             {d.tagline && <p className="mb-3 text-lg italic text-fg/80">“{d.tagline}”</p>}
             <p className="mb-5 max-w-2xl leading-relaxed text-fg/85">{d.overview}</p>

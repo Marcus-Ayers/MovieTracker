@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from "date-fns";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { DeleteAccountCard } from "@/components/delete-account-card";
 import { PageHeader } from "@/components/page";
 import { PlexCard, type PlexCardData } from "@/components/plex-card";
 import { RatingsCard } from "@/components/ratings-card";
@@ -9,6 +10,7 @@ import { isSiteAdmin, requireUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { getAccounts, getPlexConnection, serverConn } from "@/lib/plex";
 import { getRatingsStatus } from "@/lib/ratings";
+import { getStreamingServiceChoices, hasTmdbKey } from "@/lib/tmdb";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -30,7 +32,12 @@ async function loadPlex(userId: number): Promise<PlexCardData> {
 
 async function Settings() {
   const user = await requireUser("/settings");
-  const [s, plex, admin] = await Promise.all([getRatingsStatus(user.id), loadPlex(user.id), isSiteAdmin(user.id)]);
+  const [s, plex, admin, serviceChoices] = await Promise.all([
+    getRatingsStatus(user.id),
+    loadPlex(user.id),
+    isSiteAdmin(user.id),
+    hasTmdbKey() ? getStreamingServiceChoices().catch(() => null) : null,
+  ]);
   const ago = (d: Date | null) => (d ? `updated ${formatDistanceToNow(d, { addSuffix: true })}` : "never updated");
   return (
     <div className="max-w-2xl space-y-10 px-4 sm:px-8 lg:px-12">
@@ -40,6 +47,8 @@ async function Settings() {
         visibility={user.visibility}
         hideWatched={user.hideWatched}
         ratePrompt={user.ratePrompt}
+        streamingServices={user.streamingServices}
+        serviceChoices={serviceChoices}
       />
       <PlexCard data={plex} />
       <RatingsCard
@@ -54,6 +63,7 @@ async function Settings() {
           canRunNow: admin,
         }}
       />
+      <DeleteAccountCard username={user.username} />
     </div>
   );
 }

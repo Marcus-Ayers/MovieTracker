@@ -170,15 +170,19 @@ export async function getPublicTakes(tmdbId: number, mediaType: MediaType, exclu
     .slice(0, limit);
 }
 
-export async function getWatchlist(userId: number): Promise<Title[]> {
+/** Your watchlist with when each title was added, newest first. */
+export async function getWatchlistEntries(userId: number): Promise<{ title: Title; addedAt: Date | null }[]> {
   const db = await getDb();
-  const rows = await db
-    .select({ title: titles })
+  return db
+    .select({ title: titles, addedAt: userTitles.watchlistedAt })
     .from(userTitles)
     .innerJoin(titles, eq(userTitles.titleId, titles.id))
     .where(and(eq(userTitles.userId, userId), eq(userTitles.onWatchlist, true)))
     .orderBy(desc(userTitles.watchlistedAt));
-  return rows.map((r) => r.title);
+}
+
+export async function getWatchlist(userId: number): Promise<Title[]> {
+  return (await getWatchlistEntries(userId)).map((r) => r.title);
 }
 
 export async function getCreditsFor(titleIds: number[], roles: ("director" | "writer" | "creator" | "cast")[]) {

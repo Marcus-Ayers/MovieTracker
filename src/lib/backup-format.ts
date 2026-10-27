@@ -46,6 +46,7 @@ export const backupProfile = z.object({
   visibility: z.enum(["everyone", "friends", "private"]),
   hideWatched: z.boolean(),
   ratePrompt: z.boolean().optional(),
+  streamingServices: z.array(z.number().int().positive()).max(100).optional(),
 });
 
 export const backupSchema = z.object({

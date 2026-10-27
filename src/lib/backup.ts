@@ -74,6 +74,7 @@ export async function buildBackup(userId: number): Promise<Backup> {
       visibility: user.visibility,
       hideWatched: user.hideWatched,
       ratePrompt: user.ratePrompt,
+      streamingServices: user.streamingServices,
     },
     titles: [...titleMap.values()],
     diary,
