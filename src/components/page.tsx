@@ -28,8 +28,8 @@ export function Notice({ icon, title, children }: { icon: ReactNode; title: stri
 export function NoOwnerNotice() {
   return (
     <Notice icon={<UserPlus className="size-6" />} title="No account yet">
-      <p className="mb-6">Create your account to start logging what you watch.</p>
-      <Link href="/setup" className="rounded bg-accent px-5 py-2.5 font-semibold text-white hover:bg-accent-hover">
+      <p className="mb-6">Sign in to create your account and start logging what you watch.</p>
+      <Link href="/sign-up" className="rounded bg-accent px-5 py-2.5 font-semibold text-white hover:bg-accent-hover">
         Create account
       </Link>
     </Notice>

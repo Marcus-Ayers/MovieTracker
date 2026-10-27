@@ -1,16 +1,16 @@
 import "server-only";
-import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { and, asc, eq, gt } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { asc, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { getDb, sessions, users, type Visibility } from "@/db";
+import { getDb, users, type DB, type Visibility } from "@/db";
 
-const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
-
-const COOKIE = "mt_session";
-const SESSION_DAYS = 60;
+/**
+ * Sign-in is handled by Clerk (passwords, Google, 2FA, password resets). This file maps the signed-in
+ * Clerk account to this site's own user row, which owns the diary, watchlist and settings.
+ */
 
 export type CurrentUser = {
   id: number;
@@ -20,70 +20,66 @@ export type CurrentUser = {
   hideWatched: boolean;
 };
 
-export async function hashPassword(password: string) {
-  const salt = randomBytes(16);
-  const key = await scryptAsync(password, salt, 64);
-  return `${salt.toString("hex")}:${key.toString("hex")}`;
-}
+const userColumns = {
+  id: users.id,
+  username: users.username,
+  displayName: users.displayName,
+  visibility: users.visibility,
+  hideWatched: users.hideWatched,
+};
 
-export async function verifyPassword(password: string, stored: string) {
-  const [saltHex, keyHex] = stored.split(":");
-  if (!saltHex || !keyHex) return false;
-  const expected = Buffer.from(keyHex, "hex");
-  const actual = await scryptAsync(password, Buffer.from(saltHex, "hex"), expected.length);
-  return timingSafeEqual(actual, expected);
-}
-
-const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
-
-export async function createSession(userId: number) {
-  const token = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
-  const db = await getDb();
-  await db.insert(sessions).values({ id: hashToken(token), userId, expiresAt });
-  (await cookies()).set(COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: expiresAt,
-  });
-}
-
-export async function destroySession() {
-  const store = await cookies();
-  const token = store.get(COOKIE)?.value;
-  if (token) {
-    const db = await getDb();
-    await db.delete(sessions).where(eq(sessions.id, hashToken(token)));
+/** On a brand-new site, the first person to sign in becomes the owner. */
+async function createOwner(db: DB, clerkId: string): Promise<CurrentUser | null> {
+  const profile = await currentUser();
+  const email = profile?.primaryEmailAddress?.emailAddress ?? "";
+  const handle = (profile?.username || email.split("@")[0] || "owner").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 24) || "owner";
+  try {
+    const [row] = await db
+      .insert(users)
+      .values({ clerkId, username: handle, displayName: profile?.firstName || profile?.username || handle })
+      .returning(userColumns);
+    return row;
+  } catch {
+    // Two first requests raced; the other one created it.
+    const [row] = await db.select(userColumns).from(users).where(eq(users.clerkId, clerkId));
+    return row ?? null;
   }
-  store.delete(COOKIE);
 }
 
-/** The logged-in user, or null for visitors. Deduplicated per request. */
+/** The signed-in user, or null for visitors. Deduplicated per request. */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
-  const token = (await cookies()).get(COOKIE)?.value;
-  if (!token) return null;
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return null;
   const db = await getDb();
-  const [row] = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      displayName: users.displayName,
-      visibility: users.visibility,
-      hideWatched: users.hideWatched,
-    })
-    .from(sessions)
-    .innerJoin(users, eq(sessions.userId, users.id))
-    .where(and(eq(sessions.id, hashToken(token)), gt(sessions.expiresAt, new Date())));
-  return row ?? null;
+  const [row] = await db.select(userColumns).from(users).where(eq(users.clerkId, clerkId));
+  if (row) return row;
+  const [{ value }] = await db.select({ value: count() }).from(users);
+  return value === 0 ? createOwner(db, clerkId) : null;
+});
+
+export type SignInState = "signed-out" | "linked" | "needs-link" | "not-owner";
+
+/**
+ * Where the visitor stands:
+ * - needs-link: signed in with Clerk, and this site has an account from before Clerk that isn't linked yet
+ * - not-owner: signed in with Clerk, but the owner's account is already linked to someone else
+ */
+export const getSignInState = cache(async (): Promise<SignInState> => {
+  const { userId } = await auth();
+  if (!userId) return "signed-out";
+  if (await getCurrentUser()) return "linked";
+  const db = await getDb();
+  const [owner] = await db.select({ clerkId: users.clerkId }).from(users).orderBy(asc(users.id)).limit(1);
+  return owner && !owner.clerkId ? "needs-link" : "not-owner";
 });
 
 /** For server actions and owner-only pages. */
 export async function requireUser(next?: string): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
-  return user;
+  if (user) return user;
+  const state = await getSignInState();
+  if (state === "signed-out") redirect(next ? `/sign-in?redirect_url=${encodeURIComponent(next)}` : "/sign-in");
+  redirect("/account");
 }
 
 /**
@@ -92,17 +88,7 @@ export async function requireUser(next?: string): Promise<CurrentUser> {
  */
 export const getOwner = cache(async (): Promise<CurrentUser | null> => {
   const db = await getDb();
-  const [row] = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      displayName: users.displayName,
-      visibility: users.visibility,
-      hideWatched: users.hideWatched,
-    })
-    .from(users)
-    .orderBy(asc(users.id))
-    .limit(1);
+  const [row] = await db.select(userColumns).from(users).orderBy(asc(users.id)).limit(1);
   return row ?? null;
 });
 
@@ -119,4 +105,19 @@ export async function getProfileAccess(): Promise<ProfileAccess> {
   // "friends" behaves like "private" until a friends system exists.
   if (!isOwner && owner.visibility !== "everyone") return { status: "private", owner };
   return { status: "ok", owner, viewer, isOwner };
+}
+
+// ---------------------------------------------------------------------------
+// Linking an account from before Clerk (one time)
+// ---------------------------------------------------------------------------
+
+const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
+
+/** Checks a password against the hash stored by the old (pre-Clerk) login. */
+export async function verifyLegacyPassword(password: string, stored: string) {
+  const [saltHex, keyHex] = stored.split(":");
+  if (!saltHex || !keyHex) return false;
+  const expected = Buffer.from(keyHex, "hex");
+  const actual = await scryptAsync(password, Buffer.from(saltHex, "hex"), expected.length);
+  return timingSafeEqual(actual, expected);
 }

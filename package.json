@@ -12,6 +12,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.9.21",
     "@electric-sql/pglite": "^0.5.11",
     "@tiptap/extension-placeholder": "^3.32.0",
     "@tiptap/pm": "^3.32.0",

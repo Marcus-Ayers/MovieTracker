@@ -30,21 +30,15 @@ export type SeasonInfo = {
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  // The Clerk account that signs in as this user (Clerk handles passwords, Google, 2FA, etc.).
+  clerkId: text("clerk_id").unique(),
   username: text("username").notNull().unique(),
   displayName: text("display_name").notNull(),
-  passwordHash: text("password_hash").notNull(),
+  // Only set on accounts created before Clerk; used once to link them, then cleared.
+  passwordHash: text("password_hash"),
   visibility: visibilityEnum("visibility").notNull().default("everyone"),
   hideWatched: boolean("hide_watched").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const sessions = pgTable("sessions", {
-  // SHA-256 of the cookie token, so a leaked database can't be used to log in.
-  id: text("id").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
 
 /** A movie or TV show cached from TMDB. Refreshed in the background so it never gets older than TMDB allows. */

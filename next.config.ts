@@ -5,6 +5,13 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   // PGlite (the local dev database) ships WASM files that must be loaded from node_modules, not bundled.
   serverExternalPackages: ["@electric-sql/pglite"],
+  // Old login URLs from before Clerk.
+  async redirects() {
+    return [
+      { source: "/login", destination: "/sign-in", permanent: true },
+      { source: "/setup", destination: "/sign-up", permanent: true },
+    ];
+  },
   images: {
     // TMDB already serves pre-sized images, so skip Vercel's optimizer (keeps us inside the free tier).
     unoptimized: true,

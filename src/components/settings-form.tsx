@@ -1,10 +1,11 @@
 "use client";
 
-import { Download, Globe, Lock, Upload, Users } from "lucide-react";
+import { SignOutButton, useClerk } from "@clerk/nextjs";
+import { Download, Globe, Lock, ShieldCheck, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import { useActionState } from "react";
 import type { Visibility } from "@/db/schema";
-import { logout, updateSettings, type ActionState } from "@/lib/actions";
+import { updateSettings, type ActionState } from "@/lib/actions";
 import { cn } from "@/lib/format";
 import { submitTo } from "@/lib/forms";
 
@@ -26,6 +27,7 @@ export function SettingsForm({
   hideWatched: boolean;
 }) {
   const [state, action, pending] = useActionState(updateSettings, { ok: false } as ActionState);
+  const clerk = useClerk();
   return (
     <div className="max-w-2xl space-y-10">
       <form onSubmit={submitTo(action)} className="space-y-8">
@@ -104,9 +106,22 @@ export function SettingsForm({
         </div>
       </section>
 
-      <form action={logout}>
-        <button className="rounded border border-line px-5 py-2 text-sm text-muted hover:border-fg/40 hover:text-fg">Sign out</button>
-      </form>
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <h2 className="mb-1 font-semibold">Sign-in & security</h2>
+        <p className="mb-4 text-sm text-muted">Password, Google sign-in, two-factor and devices are managed by Clerk.</p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => clerk.openUserProfile()}
+            className="inline-flex items-center gap-2 rounded border border-line px-4 py-2 text-sm hover:border-fg/40"
+          >
+            <ShieldCheck className="size-4" /> Manage sign-in & security
+          </button>
+          <SignOutButton>
+            <button className="rounded border border-line px-5 py-2 text-sm text-muted hover:border-fg/40 hover:text-fg">Sign out</button>
+          </SignOutButton>
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,22 +1,24 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { getSignInState } from "@/lib/auth";
+import { AccountMenu } from "./account-menu";
 
 export async function NavUser() {
-  const user = await getCurrentUser();
-  if (!user) {
+  const state = await getSignInState();
+  if (state === "signed-out") {
     return (
-      <Link href="/login" className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-hover">
+      <Link href="/sign-in" className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-hover">
         Sign in
       </Link>
     );
   }
   return (
-    <Link
-      href="/settings"
-      title={`${user.displayName} · Settings`}
-      className="grid size-8 place-items-center rounded bg-accent text-sm font-bold text-white ring-offset-2 ring-offset-bg hover:ring-2 hover:ring-fg"
-    >
-      {user.displayName.slice(0, 1).toUpperCase()}
-    </Link>
+    <div className="flex items-center gap-3">
+      {state === "needs-link" && (
+        <Link href="/account" className="rounded bg-gold px-3 py-1.5 text-xs font-semibold text-black">
+          Link your account
+        </Link>
+      )}
+      <AccountMenu state={state} />
+    </div>
   );
 }

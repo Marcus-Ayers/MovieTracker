@@ -86,7 +86,7 @@ async function Explore({ searchParams }: { searchParams: PageProps<"/explore">["
       <div className="relative z-10 space-y-9 sm:-mt-8">
         {!user && (
           <p className="px-4 text-sm text-muted sm:px-8 lg:px-12">
-            <Link href="/login" className="text-fg underline decoration-accent underline-offset-4">
+            <Link href="/sign-in" className="text-fg underline decoration-accent underline-offset-4">
               Sign in
             </Link>{" "}
             for recommendations based on what you&apos;ve watched.

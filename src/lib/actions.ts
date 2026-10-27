@@ -1,11 +1,12 @@
 "use server";
 
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, userTitles, users, viewings, type DB } from "@/db";
-import { createSession, destroySession, hashPassword, requireUser, verifyPassword } from "./auth";
+import { requireUser, verifyLegacyPassword } from "./auth";
 import type { MediaType } from "./format";
 import { cleanReview } from "./reviews";
 import { ensureTitle } from "./title-cache";
@@ -31,50 +32,42 @@ function refreshEverything() {
 // Accounts
 // ---------------------------------------------------------------------------
 
-const setupSchema = z.object({
-  displayName: z.string().trim().min(1, "Enter a display name.").max(60),
-  username: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9_]{3,24}$/, "Username: 3–24 letters, numbers, or underscores."),
-  password: z.string().min(8, "Password must be at least 8 characters.").max(200),
-});
+// Wrong-password attempts per Clerk account when linking (a small brute-force guard).
+const linkAttempts = new Map<string, { count: number; first: number }>();
+const LINK_WINDOW_MS = 15 * 60 * 1000;
+const LINK_MAX_ATTEMPTS = 5;
 
-export async function setupAccount(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = setupSchema.safeParse(fields(formData));
-  if (!parsed.success) return { ok: false, error: firstError(parsed.error) };
-  const db = await getDb();
-  const [{ value: existing }] = await db.select({ value: count() }).from(users);
-  if (existing > 0) return { ok: false, error: "An account already exists. Log in instead." };
+/**
+ * One time: connect your Clerk sign-in to the account you made before Clerk, by confirming the old
+ * username + password. The old password is then deleted; Clerk handles sign-in from here on.
+ */
+export async function linkAccount(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) redirect("/sign-in?redirect_url=/account");
 
-  const [user] = await db
-    .insert(users)
-    .values({
-      displayName: parsed.data.displayName,
-      username: parsed.data.username,
-      passwordHash: await hashPassword(parsed.data.password),
-    })
-    .returning({ id: users.id });
-  await createSession(user.id);
-  redirect("/");
-}
-
-export async function login(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const data = fields(formData);
-  const username = data.username?.trim().toLowerCase() ?? "";
-  const db = await getDb();
-  const [user] = await db.select().from(users).where(eq(users.username, username));
-  if (!user || !(await verifyPassword(data.password ?? "", user.passwordHash))) {
-    return { ok: false, error: "Wrong username or password." };
+  const now = Date.now();
+  const attempts = linkAttempts.get(clerkId);
+  if (attempts && now - attempts.first < LINK_WINDOW_MS && attempts.count >= LINK_MAX_ATTEMPTS) {
+    return { ok: false, error: "Too many attempts. Wait 15 minutes and try again." };
   }
-  await createSession(user.id);
-  const next = data.next;
-  redirect(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
-}
 
-export async function logout() {
-  await destroySession();
+  const data = fields(formData);
+  const db = await getDb();
+  const [owner] = await db.select().from(users).orderBy(asc(users.id)).limit(1);
+  if (!owner || owner.clerkId) return { ok: false, error: "There's no account waiting to be linked." };
+  const ok =
+    owner.passwordHash !== null &&
+    (data.username ?? "").trim().toLowerCase() === owner.username &&
+    (await verifyLegacyPassword(data.password ?? "", owner.passwordHash));
+  if (!ok) {
+    const fresh = !attempts || now - attempts.first >= LINK_WINDOW_MS;
+    linkAttempts.set(clerkId, fresh ? { count: 1, first: now } : { count: attempts.count + 1, first: attempts.first });
+    return { ok: false, error: "That username and password don't match your existing account." };
+  }
+
+  await db.update(users).set({ clerkId, passwordHash: null }).where(eq(users.id, owner.id));
+  linkAttempts.delete(clerkId);
+  refreshEverything();
   redirect("/");
 }
 

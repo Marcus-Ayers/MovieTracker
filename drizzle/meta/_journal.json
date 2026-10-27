@@ -43,6 +43,13 @@
       "when": 1792981348246,
       "tag": "0005_title_collections",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793064788149,
+      "tag": "0006_clerk",
+      "breakpoints": true
     }
   ]
 }
