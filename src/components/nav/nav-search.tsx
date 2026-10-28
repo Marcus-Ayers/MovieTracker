@@ -5,21 +5,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { QuickSearchResult } from "@/app/api/search/route";
 import { cn, MEDIA_LABEL, titleHref, tmdbImage } from "@/lib/format";
+import { useQuickSearch } from "@/lib/use-quick-search";
 
 function isTypingTarget(target: EventTarget | null) {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
 
+/**
+ * The search box in the desktop header: opens with a click, "/" or ⌘K, shows quick results as you type, and Enter
+ * goes to the full results page.
+ */
 export function NavSearch() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<{ term: string; data: QuickSearchResult } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const term = query.trim();
+  const results = useQuickSearch(query);
 
   // ⌘K / Ctrl+K or "/" opens search from anywhere.
   useEffect(() => {
@@ -42,30 +46,12 @@ export function NavSearch() {
     return () => document.removeEventListener("pointerdown", onDown);
   }, []);
 
-  useEffect(() => {
-    if (term.length < 2) return;
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`, { signal: controller.signal });
-        if (res.ok) setResults({ term, data: (await res.json()) as QuickSearchResult });
-      } catch {
-        // Aborted or offline; keep previous results.
-      }
-    }, 200);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [term]);
-
   const close = () => {
     setOpen(false);
     setQuery("");
-    setResults(null);
   };
 
-  const showResults = open && term.length >= 2 && results !== null;
+  const showResults = open && results !== null;
   const data = results?.data;
 
   return (

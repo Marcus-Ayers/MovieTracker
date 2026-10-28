@@ -12,6 +12,11 @@ import { loadCuratedTitles, toItemView, type ListItemView } from "./lists";
 import { DEFAULT_TIERS } from "./tiers";
 import { ensureTitle } from "./title-cache";
 
+/**
+ * Server actions for lists and tier lists: create, copy a featured list ("Make it mine"), rename and edit, delete,
+ * add or remove titles, and save the order and tiers after a drag. Every action checks the list is yours first.
+ */
+
 export type ListActionResult = { ok: boolean; error?: string };
 
 const MAX_ITEMS = 500;
@@ -33,6 +38,7 @@ async function ownList(db: DB, listId: number, userId: number) {
 
 const touch = (db: DB, listId: number) => db.update(lists).set({ updatedAt: new Date() }).where(eq(lists.id, listId));
 
+/** Makes a new, empty list or tier list (tier lists start with S–F tiers). */
 export async function createList(input: { kind: "list" | "tier"; name: string; description?: string; ranked?: boolean }) {
   const user = await requireUser("/lists");
   const name = nameSchema.safeParse(input.name);
@@ -77,6 +83,7 @@ export async function copyCuratedList(slug: string) {
   redirect(`/lists/${row.id}`);
 }
 
+/** Saves a list's name, description, ranked setting or tiers. Titles in a removed tier go back to "not ranked yet". */
 export async function updateList(listId: number, patch: { name?: string; description?: string; ranked?: boolean; tiers?: z.infer<typeof tiersSchema> }): Promise<ListActionResult> {
   const user = await requireUser("/lists");
   const db = await getDb();
@@ -104,6 +111,7 @@ export async function updateList(listId: number, patch: { name?: string; descrip
   return { ok: true };
 }
 
+/** Deletes one of your lists, then goes back to /lists. */
 export async function deleteList(listId: number) {
   const user = await requireUser("/lists");
   const db = await getDb();
@@ -113,6 +121,10 @@ export async function deleteList(listId: number) {
   redirect("/lists");
 }
 
+/**
+ * Adds a title to the end of a list (tier lists: to "not ranked yet"). Returns it so the page can show it right
+ * away.
+ */
 export async function addTitleToList(listId: number, tmdbId: number, mediaType: MediaType): Promise<ListActionResult & { item?: ListItemView }> {
   const user = await requireUser("/lists");
   const db = await getDb();
@@ -134,6 +146,7 @@ export async function addTitleToList(listId: number, tmdbId: number, mediaType: 
   return { ok: true, item: toItemView(title) };
 }
 
+/** Takes a title off one of your lists. */
 export async function removeTitleFromList(listId: number, titleId: number): Promise<ListActionResult> {
   const user = await requireUser("/lists");
   const db = await getDb();

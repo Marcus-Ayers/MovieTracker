@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { finishPlexLink } from "@/lib/plex-actions";
 
+/**
+ * The page Plex sends you back to after you approve the connection: finishes linking (finishPlexLink) and then
+ * returns you to Settings.
+ */
 export function PlexLinked() {
   const router = useRouter();
   const [message, setMessage] = useState("Finishing up…");

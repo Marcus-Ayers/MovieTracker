@@ -5,6 +5,10 @@ import { SignInNotice } from "@/components/profile/profile-nav";
 import { RecapYears } from "@/components/recap/recap-view";
 import { getCurrentUser } from "@/lib/auth";
 
+/**
+ * /recap — a card for each year in your diary (components/recap/recap-view.tsx).
+ */
+
 export const metadata: Metadata = { title: "Year in review" };
 
 async function MyRecaps() {

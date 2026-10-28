@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { friendships, getDb, users } from "@/db";
 import { requireUser } from "./auth";
 
+/**
+ * Server actions for friends: send a request (or accept theirs if they already asked), accept, and remove, which
+ * covers declining, cancelling and unfriending. The rules for who can see whom are in friends.ts.
+ */
+
 export type FriendActionResult = { ok: boolean; error?: string };
 
 // A guard against someone spraying requests at everyone.

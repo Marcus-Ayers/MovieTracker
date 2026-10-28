@@ -9,6 +9,11 @@ import { MissingKey } from "../missing-key";
 import { DiscoverResults } from "./discover-results";
 import { DiscoverSidebar } from "./discover-sidebar";
 
+/**
+ * The Movies and TV pages: reads the filters from the URL, loads the first page of results from TMDB
+ * (lib/discover.ts), and lays out the filter panel and results.
+ */
+
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function activeFilterCount(f: DiscoverFilters) {
@@ -79,6 +84,10 @@ function DiscoverSkeleton() {
   );
 }
 
+/**
+ * The Movies or TV page: parses the filters from the URL, loads the first page of results, and lays out the filter
+ * panel and results.
+ */
 export function DiscoverView({ media, searchParams }: { media: MediaType; searchParams: SearchParams }) {
   if (!hasTmdbKey()) return <MissingKey />;
   return (

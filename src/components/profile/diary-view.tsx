@@ -8,6 +8,12 @@ import { cn, plural, seasonLabel, titleHref, tmdbImage } from "@/lib/format";
 import { compareViewings, getViewings, type ViewingWithTitle } from "@/lib/library";
 import { MONTHS_LONG } from "@/lib/stats";
 
+/**
+ * The diary (yours at /diary, someone else's at /u/[username]/diary). Entries grouped by month, newest first, with
+ * year pills, filter chips (the Stats page links here with filters), an All entries / With reviews toggle, and a
+ * collapsed "Date unknown" section for undated imports.
+ */
+
 function Entry({ row, showReview }: { row: ViewingWithTitle; showReview: boolean }) {
   const { viewing: v, title: t } = row;
   const poster = tmdbImage(t.posterPath, "w92");
@@ -52,12 +58,17 @@ function Entry({ row, showReview }: { row: ViewingWithTitle; showReview: boolean
 
 const monthLabel = (month: string) => `${MONTHS_LONG[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
 
+/**
+ * The diary for one person (`base` is "" for your own pages, "/u/username" on a public profile, so links stay on
+ * the right one).
+ */
 export async function DiaryView({ profile, isOwn, base, searchParams }: ProfileViewProps) {
   const raw = await searchParams;
   const params: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw)) if (typeof value === "string" && value) params[key] = value;
 
-  const all = (await getViewings(profile.id)).sort((a, b) => compareViewings(b.viewing, a.viewing));
+  // A copy: getViewings' result is shared with anything else on this page.
+  const all = [...(await getViewings(profile.id))].sort((a, b) => compareViewings(b.viewing, a.viewing));
   const years = [...new Set(all.map((r) => r.viewing.watchedOn?.slice(0, 4)).filter((y): y is string => Boolean(y)))];
 
   // Filters (the stats page links here with these).

@@ -12,6 +12,11 @@ import { getAccounts, getPlexConnection, serverConn } from "@/lib/plex";
 import { getRatingsStatus } from "@/lib/ratings";
 import { getStreamingServiceChoices, hasTmdbKey } from "@/lib/tmdb";
 
+/**
+ * /settings — profile and privacy, social switches, streaming services, Plex, ratings data, install instructions,
+ * and deleting your account.
+ */
+
 export const metadata: Metadata = { title: "Settings" };
 
 async function loadPlex(userId: number): Promise<PlexCardData> {

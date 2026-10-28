@@ -6,6 +6,11 @@ import { openProfile } from "@/components/profile/profile-nav";
 import { RecapView } from "@/components/recap/recap-view";
 import { parseRecapYear } from "@/lib/recap-year";
 
+/**
+ * /u/[username]/recap/[year] — the shareable year in review. Its link preview image is opengraph-image.tsx next to
+ * this file.
+ */
+
 export async function generateMetadata(props: PageProps<"/u/[username]/recap/[year]">): Promise<Metadata> {
   const { username, year } = await props.params;
   return { title: `@${username}'s ${year} in film`, description: `A year in movies and TV: top films, hours watched, favorite director and more.` };

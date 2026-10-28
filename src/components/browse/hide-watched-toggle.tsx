@@ -5,6 +5,11 @@ import { useTransition } from "react";
 import { setHideWatched } from "@/lib/actions";
 import { cn } from "@/lib/format";
 
+/**
+ * The "Hide watched" switch on the home page: hides things you've already logged from the browse rows. Saved to
+ * your settings.
+ */
+
 export function HideWatchedToggle({ hidden }: { hidden: boolean }) {
   const [pending, startTransition] = useTransition();
   return (

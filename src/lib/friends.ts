@@ -36,6 +36,7 @@ export const getConnections = cache(async (userId: number) => {
   return { friends, incoming, outgoing };
 });
 
+/** Your relationship to someone: friends, a request either way, or none. */
 export async function relationBetween(userId: number, otherId: number): Promise<Relation> {
   const c = await getConnections(userId);
   if (c.friends.includes(otherId)) return "friends";

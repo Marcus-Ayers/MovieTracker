@@ -133,6 +133,10 @@ export async function backfillCollections(db: DB, limit = 400) {
   }
 }
 
+/**
+ * How many saved movies haven't been checked for a film series yet (the Stats page fills those in, in the
+ * background).
+ */
 export async function countUncheckedCollections(db: DB) {
   const rows = await db
     .select({ tmdbId: titles.tmdbId })

@@ -13,6 +13,11 @@ import { formatDate, tmdbImage } from "@/lib/format";
 import { getWatchedMap } from "@/lib/library";
 import { getPerson, hasTmdbKey, type PersonCredit, type PersonDetails } from "@/lib/tmdb";
 
+/**
+ * /person/[id] — an actor's or director's page: photo, bio, and their filmography split into directing, writing
+ * and acting, with what you've seen marked and a "seen X of Y" count.
+ */
+
 export async function generateMetadata(props: PageProps<"/person/[id]">): Promise<Metadata> {
   const { id } = await props.params;
   if (!hasTmdbKey()) return { title: "Person" };

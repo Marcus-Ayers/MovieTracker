@@ -3,6 +3,11 @@ import type { DiscoverFilters } from "./discover-filters";
 import { toTmdbParams } from "./discover-filters";
 import { discover, type MediaItem } from "./tmdb";
 
+/**
+ * The Movies and TV pages' results: runs the page's filters against TMDB's Discover endpoint and marks what you've
+ * already seen (optionally hiding it).
+ */
+
 export type DiscoverItem = MediaItem & { myRating?: number | null };
 export type DiscoverPage = { items: DiscoverItem[]; nextPage: number | null; totalResults: number };
 

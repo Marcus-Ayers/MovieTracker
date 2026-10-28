@@ -1,6 +1,7 @@
 // Pure date/stat helpers. Dates are always YYYY-MM-DD strings to avoid time zone drift.
 import { addDays, differenceInCalendarDays, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from "date-fns";
 
+/** A date as "2025-03-14" in local time. */
 export const toDateString = (d: Date) => format(d, "yyyy-MM-dd");
 
 export type DayEntry = {
@@ -15,6 +16,10 @@ export type DayEntry = {
 /** date → what you watched that day */
 export type DayMap = Record<string, DayEntry[]>;
 
+/**
+ * Days in a row with something watched: the current streak (alive if the last day was today or yesterday) and the
+ * longest ever.
+ */
 export function computeStreaks(dates: string[], today: string) {
   const days = [...new Set(dates)].sort();
   let longest = 0;
@@ -62,14 +67,12 @@ export function monthWeeks(year: number, month: number): (string | null)[][] {
   return cols;
 }
 
+/** Heatmap shade for a day: 0 (nothing) up to 4 (four or more). */
 export function heatLevel(count: number) {
-  if (count <= 0) return 0;
-  if (count === 1) return 1;
-  if (count === 2) return 2;
-  if (count === 3) return 3;
-  return 4;
+  return Math.max(0, Math.min(count, 4));
 }
 
+/** Counts items by a key, most common first; empty keys are skipped. */
 export function countBy<T>(items: T[], key: (item: T) => string | number | null | undefined) {
   const counts = new Map<string | number, number>();
   for (const item of items) {

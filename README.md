@@ -46,14 +46,16 @@ Clerk's production keys need a domain you own; development keys work on `*.verce
 
 ## Where things live
 
+The full tour (how pages are built, caching, the database, privacy, background jobs, phones, and a short guide to reading the TypeScript) is in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. The short version:
+
 ```
 src/
-  app/                 Pages (one folder per URL) and the search API route
-  components/          UI: browse rows, title page, log dialog, stats heatmap, nav
+  app/                 Pages (one folder per URL) and app/api/ JSON endpoints
+  components/          UI, grouped by area: title, profile (library/diary/stats/watchlist/lists), lists, rate, recap, nav, media, ui
   db/schema.ts         Database tables
   lib/tmdb.ts          Every TMDB call (cached with "use cache")
   lib/library.ts       Your diary/library queries and rating math
-  lib/actions.ts       Everything that saves data (log, edit, delete, watchlist, settings)
+  lib/*-actions.ts     Everything that saves data (actions.ts: diary, watchlist, settings; plus lists, friends, Plex, imports…)
   components/profile/  Library, diary, stats and watchlist views (yours at /library…, others' at /u/<username>/…)
   lib/auth.ts          Clerk sign-in → accounts on this site, and profile privacy
   lib/curated.ts       The featured lists and tier lists on /lists (TMDB ids, checked by hand)

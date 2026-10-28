@@ -6,6 +6,7 @@ import { EmptyState, PageHeader } from "@/components/page";
 import { ProfileTabs, type ProfileViewProps } from "@/components/profile/profile-nav";
 import { PickForMe, type PickItem } from "@/components/watchlist/pick-for-me";
 import type { Title } from "@/db";
+import { mapLimit } from "@/lib/async";
 import { getCurrentUser } from "@/lib/auth";
 import { formatRuntime, plural } from "@/lib/format";
 import { getWatchlistEntries } from "@/lib/library";
@@ -52,6 +53,10 @@ function subtitleFor(e: Entry, sort: string, servicesFirst: boolean) {
   return (servicesFirst ? [services, sortBit] : [sortBit, services]).filter(Boolean).join(" · ");
 }
 
+/**
+ * The watchlist for one person, with sort, Movies/TV, "On my services" (using the viewer's streaming services) and
+ * Pick one for me.
+ */
 export async function WatchlistView({ profile, isOwn, base, searchParams }: ProfileViewProps) {
   const raw = await searchParams;
   const params: Record<string, string> = {};
@@ -59,17 +64,17 @@ export async function WatchlistView({ profile, isOwn, base, searchParams }: Prof
   const type = params.type === "movie" || params.type === "tv" ? params.type : "all";
   const sort = SORTS.some((s) => s.value === params.sort) ? params.sort : "added";
 
-  const viewer = isOwn ? profile : await getCurrentUser();
+  const [viewer, rows] = await Promise.all([isOwn ? profile : getCurrentUser(), getWatchlistEntries(profile.id)]);
   const services = viewer?.streamingServices ?? [];
   const yours = expandServices(services);
   const onlyMine = params.where === "mine" && services.length > 0;
 
-  const rows = await getWatchlistEntries(profile.id);
   const [imdb, providers] = await Promise.all([
     getSavedImdbScores(rows.map((r) => r.title.imdbId).filter((id): id is string => Boolean(id))),
     // Where each title streams, only needed once you've told us your services.
     services.length
-      ? Promise.all(rows.map((r) => getStreamingProviders(r.title.mediaType, r.title.tmdbId).catch(() => [])))
+      ? // A few at a time: a long watchlist would otherwise fire hundreds of TMDB requests at once.
+        mapLimit(rows, 8, (r) => getStreamingProviders(r.title.mediaType, r.title.tmdbId).catch(() => []))
       : rows.map(() => [] as WatchProvider[]),
   ]);
   const entries: Entry[] = rows.map((r, i) => {

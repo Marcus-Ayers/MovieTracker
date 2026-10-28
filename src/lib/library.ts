@@ -2,7 +2,15 @@ import "server-only";
 import { and, desc, eq, gt, inArray, notInArray, type SQL } from "drizzle-orm";
 import { cache } from "react";
 import { credits, getDb, people, titles, users, userTitles, viewings, type Title, type Viewing } from "@/db";
+import type { ViewingDraft } from "@/components/log/log-button";
 import type { MediaType } from "./format";
+
+/**
+ * Reading someone's diary: every entry (getViewings), one entry per title with the rating math (getLibrary /
+ * summarize), one title's state, the watchlist, credits, and what friends or the community thought of a title.
+ * Most personal pages are built on these queries, so the big ones are deduplicated per request with React's
+ * cache().
+ */
 
 export type ViewingWithTitle = { viewing: Viewing; title: Title };
 
@@ -27,6 +35,10 @@ export type LibraryEntry = {
   mainReview: Viewing | null;
 };
 
+/**
+ * One title's diary entries summed up: watch count, your current rating (TV: whole-series rating, else the average
+ * of your season ratings), first and last watch, liked, and the main review.
+ */
 export function summarize(title: Title, entries: Viewing[], priorWatchCount: number): LibraryEntry {
   const sorted = [...entries].sort(compareViewings);
   const dated = sorted.filter((v) => v.watchedOn);
@@ -65,17 +77,22 @@ export function summarize(title: Title, entries: Viewing[], priorWatchCount: num
   };
 }
 
-export async function getViewings(userId: number): Promise<ViewingWithTitle[]> {
+/**
+ * Every diary entry someone has, with its title. Deduplicated per request (React's cache), because a single page
+ * often needs it more than once (e.g. the library plus its "Rate N unrated" count). Treat the result as
+ * read-only: copy before sorting.
+ */
+export const getViewings = cache(async (userId: number): Promise<ViewingWithTitle[]> => {
   const db = await getDb();
   return db
     .select({ viewing: viewings, title: titles })
     .from(viewings)
     .innerJoin(titles, eq(viewings.titleId, titles.id))
     .where(eq(viewings.userId, userId));
-}
+});
 
-/** Everything you've watched, one entry per title. */
-export async function getLibrary(userId: number): Promise<LibraryEntry[]> {
+/** Everything someone has watched, one entry per title. Deduplicated per request, like getViewings. */
+export const getLibrary = cache(async (userId: number): Promise<LibraryEntry[]> => {
   const db = await getDb();
   const [rows, priorRows] = await Promise.all([
     getViewings(userId),
@@ -98,8 +115,9 @@ export async function getLibrary(userId: number): Promise<LibraryEntry[]> {
     byTitle.set(title.id, group);
   }
   return [...byTitle.values()].map((g) => summarize(g.title, g.viewings, g.prior));
-}
+});
 
+/** Key for a watched map: "movie-949". */
 export const watchedKey = (mediaType: MediaType, tmdbId: number) => `${mediaType}-${tmdbId}`;
 
 /** For poster badges while browsing: "movie-123" → your rating (or null if watched but unrated). */
@@ -174,8 +192,8 @@ export async function getTakesBy(userIds: number[], tmdbId: number, mediaType: M
   return userIds.length ? takesFor(tmdbId, mediaType, inArray(users.id, userIds), false, 50) : [];
 }
 
-/** Your watchlist with when each title was added, newest first. */
-export async function getWatchlistEntries(userId: number): Promise<{ title: Title; addedAt: Date | null }[]> {
+/** Your watchlist with when each title was added, newest first. Deduplicated per request. */
+export const getWatchlistEntries = cache(async (userId: number): Promise<{ title: Title; addedAt: Date | null }[]> => {
   const db = await getDb();
   return db
     .select({ title: titles, addedAt: userTitles.watchlistedAt })
@@ -183,12 +201,14 @@ export async function getWatchlistEntries(userId: number): Promise<{ title: Titl
     .innerJoin(titles, eq(userTitles.titleId, titles.id))
     .where(and(eq(userTitles.userId, userId), eq(userTitles.onWatchlist, true)))
     .orderBy(desc(userTitles.watchlistedAt));
-}
+});
 
+/** Your watchlist titles, newest first. */
 export async function getWatchlist(userId: number): Promise<Title[]> {
   return (await getWatchlistEntries(userId)).map((r) => r.title);
 }
 
+/** Directors, writers, creators and/or cast for many titles at once (from the credits saved with each title). */
 export async function getCreditsFor(titleIds: number[], roles: ("director" | "writer" | "creator" | "cast")[]) {
   if (!titleIds.length) return [];
   const db = await getDb();
@@ -215,6 +235,10 @@ export type LogHistory = {
   hasMainReview: boolean;
 };
 
+/**
+ * What the log form needs to know about past watches: anything logged before (so it can default to Rewatch), which
+ * seasons, and whether there's already a main review.
+ */
 export function historyFor(entry: LibraryEntry | null): LogHistory {
   return {
     hasHistory: Boolean(entry && entry.watchCount > 0),
@@ -222,3 +246,20 @@ export function historyFor(entry: LibraryEntry | null): LogHistory {
     hasMainReview: Boolean(entry?.viewings.some((v) => v.isMainReview && v.reviewHtml)),
   };
 }
+
+/** A diary entry in the shape the log form edits (see ViewingDraft in log-button.tsx). */
+export const toViewingDraft = (v: Viewing): ViewingDraft => ({
+  id: v.id,
+  watchedOn: v.watchedOn,
+  seasonNumber: v.seasonNumber,
+  rating: v.rating,
+  liked: v.liked,
+  isRewatch: v.isRewatch,
+  reviewHtml: v.reviewHtml,
+  isMainReview: v.isMainReview,
+  containsSpoilers: v.containsSpoilers,
+  watchedWhere: v.watchedWhere,
+  format: v.format,
+  watchedWith: v.watchedWith,
+  tags: v.tags,
+});

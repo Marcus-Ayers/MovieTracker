@@ -11,6 +11,12 @@ import { cn, tmdbImage } from "@/lib/format";
 import { submitTo } from "@/lib/forms";
 import type { WatchProvider } from "@/lib/tmdb";
 
+/**
+ * The main Settings form: display name and username, who can see your profile, friends & social switches,
+ * browsing, streaming services and the rating pop-up, then export/import and sign-in links. Everything except the
+ * links saves together with Save settings.
+ */
+
 const VISIBILITY: { value: Visibility; label: string; description: string; icon: React.ReactNode }[] = [
   {
     value: "everyone",
@@ -22,6 +28,7 @@ const VISIBILITY: { value: Visibility; label: string; description: string; icon:
   { value: "private", label: "Only me", description: "Your diary, reviews, and stats are hidden from everyone else.", icon: <Lock className="size-5" /> },
 ];
 
+/** The main Settings form; everything in it saves together with updateSettings. */
 export function SettingsForm({
   displayName,
   username,

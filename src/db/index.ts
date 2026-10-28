@@ -6,6 +6,12 @@ import type { PgliteDatabase } from "drizzle-orm/pglite";
 import { connection } from "next/server";
 import * as schema from "./schema";
 
+/**
+ * The database connection. Production uses Postgres on Neon (DATABASE_URL); local development uses PGlite, an
+ * embedded Postgres stored in .data/ that applies new migrations by itself. Both go through Drizzle ORM with the
+ * same query builder, so the rest of the code doesn't know or care which one it's talking to.
+ */
+
 export type DB = NodePgDatabase<typeof schema>;
 
 const MIGRATIONS = path.join(process.cwd(), "drizzle");

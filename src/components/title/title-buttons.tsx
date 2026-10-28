@@ -5,6 +5,11 @@ import { useOptimistic, useTransition } from "react";
 import { adjustPriorWatchCount, deleteViewing, setMainReview, toggleWatchlist } from "@/lib/actions";
 import { cn, type MediaType } from "@/lib/format";
 
+/**
+ * Small interactive buttons on title pages: Watchlist, the "seen before" counter, make main review, and delete an
+ * entry.
+ */
+
 export function WatchlistButton({ tmdbId, mediaType, onWatchlist }: { tmdbId: number; mediaType: MediaType; onWatchlist: boolean }) {
   const [optimistic, setOptimistic] = useOptimistic(onWatchlist);
   const [, startTransition] = useTransition();
@@ -28,6 +33,7 @@ export function WatchlistButton({ tmdbId, mediaType, onWatchlist }: { tmdbId: nu
   );
 }
 
+/** "Seen before" − / + buttons: how many times you watched a movie before you started logging it. */
 export function PriorWatchCounter({ tmdbId, mediaType, count }: { tmdbId: number; mediaType: MediaType; count: number }) {
   const [optimistic, setOptimistic] = useOptimistic(count);
   const [, startTransition] = useTransition();
@@ -52,6 +58,7 @@ export function PriorWatchCounter({ tmdbId, mediaType, count }: { tmdbId: number
   );
 }
 
+/** Deletes one diary entry, after an "are you sure?" prompt. */
 export function DeleteViewingButton({ viewingId }: { viewingId: number }) {
   const [pending, startTransition] = useTransition();
   return (
@@ -68,6 +75,7 @@ export function DeleteViewingButton({ viewingId }: { viewingId: number }) {
   );
 }
 
+/** Makes this entry's review the one shown for the title (your "main" review). */
 export function MainReviewButton({ viewingId }: { viewingId: number }) {
   const [pending, startTransition] = useTransition();
   return (

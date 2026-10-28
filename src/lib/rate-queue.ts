@@ -2,7 +2,7 @@ import "server-only";
 import type { ViewingDraft } from "@/components/log/log-button";
 import type { Title, Viewing } from "@/db";
 import { seasonLabel, type MediaType } from "./format";
-import { compareViewings, getCreditsFor, getViewings, type LogHistory, type ViewingWithTitle } from "./library";
+import { compareViewings, getCreditsFor, getViewings, toViewingDraft, type LogHistory, type ViewingWithTitle } from "./library";
 
 /** One thing to rate: a movie, or one season of a show. */
 export type RateItem = {
@@ -37,21 +37,6 @@ export type RateItem = {
   history: LogHistory;
 };
 
-const toDraft = (v: Viewing): ViewingDraft => ({
-  id: v.id,
-  watchedOn: v.watchedOn,
-  seasonNumber: v.seasonNumber,
-  rating: v.rating,
-  liked: v.liked,
-  isRewatch: v.isRewatch,
-  reviewHtml: v.reviewHtml,
-  isMainReview: v.isMainReview,
-  containsSpoilers: v.containsSpoilers,
-  watchedWhere: v.watchedWhere,
-  format: v.format,
-  watchedWith: v.watchedWith,
-  tags: v.tags,
-});
 
 type Group = { title: Title; seasonNumber: number | null; viewings: Viewing[]; latest: Viewing };
 
@@ -108,7 +93,7 @@ async function toItems(groups: Group[]): Promise<RateItem[]> {
       watchCount: viewings.length,
       lastWatched: latest.watchedOn,
       watchedWhere: latest.watchedWhere,
-      draft: toDraft(latest),
+      draft: toViewingDraft(latest),
       seasons: t.seasons.map((s) => ({ number: s.number, name: s.name })),
       history: {
         hasHistory: true,

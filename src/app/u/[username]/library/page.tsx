@@ -5,6 +5,10 @@ import { PageSkeleton } from "@/components/page";
 import { LibraryView } from "@/components/profile/library-view";
 import { openProfile } from "@/components/profile/profile-nav";
 
+/**
+ * /u/[username]/library — someone's library on their public profile, if their privacy setting lets you see it.
+ */
+
 export async function generateMetadata(props: PageProps<"/u/[username]/library">): Promise<Metadata> {
   const { username } = await props.params;
   return { title: `@${username} · Library` };

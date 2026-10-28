@@ -268,6 +268,10 @@ function DayPanel({ date, days, kind, onClose }: { date: string; days: DayMap; k
   );
 }
 
+/**
+ * A GitHub-style grid of days, darker the more you watched: a whole year, every year (all time), or one month.
+ * Hover a day for a popup; click or tap for the full list.
+ */
 export function Heatmap({
   view,
   year,

@@ -17,6 +17,10 @@ export type RatingsCardData = {
   canRunNow: boolean;
 };
 
+/**
+ * Settings → Ratings data: how many IMDb and Rotten Tomatoes scores are saved, today's OMDb usage, and (for the
+ * site admin) Update now.
+ */
 export function RatingsCard({ data }: { data: RatingsCardData }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);

@@ -5,6 +5,10 @@ import { PageSkeleton } from "@/components/page";
 import { openProfile } from "@/components/profile/profile-nav";
 import { RecapYears } from "@/components/recap/recap-view";
 
+/**
+ * /u/[username]/recap — someone's years in review, if their privacy setting lets you see them.
+ */
+
 export async function generateMetadata(props: PageProps<"/u/[username]/recap">): Promise<Metadata> {
   const { username } = await props.params;
   return { title: `@${username} · Year in review` };

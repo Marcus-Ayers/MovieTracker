@@ -23,11 +23,12 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { MyTitle } from "@/app/api/my-title/route";
 import type { QuickSearchResult } from "@/app/api/search/route";
 import { cn, MEDIA_LABEL, tmdbImage } from "@/lib/format";
-import { LogDialog, type LogTarget } from "../log/log-button";
+import { useQuickSearch } from "@/lib/use-quick-search";
+import { LogDialog, preloadLogForm, type LogTarget } from "../log/log-button";
 import { Modal } from "../ui/modal";
 
 export type TabBarUser = { username: string; displayName: string; social: boolean; requests: number } | null;
@@ -122,26 +123,10 @@ type Hit = QuickSearchResult["items"][number];
 /** ＋ Log: find something and log it in two taps. */
 function QuickLog({ user, open, onClose }: { user: TabBarUser; open: boolean; onClose: () => void }) {
   const [query, setQuery] = useState("");
-  const [found, setFound] = useState<{ query: string; items: Hit[] } | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
   const [target, setTarget] = useState<{ target: LogTarget; mine: Extract<MyTitle, { loggedIn: true }> } | null>(null);
   const q = query.trim();
-  const items = found && found.query === q ? found.items : [];
-
-  useEffect(() => {
-    if (q.length < 2) return;
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
-        .then((res) => res.json() as Promise<QuickSearchResult>)
-        .then((data) => setFound({ query: q, items: data.items }))
-        .catch(() => {});
-    }, 200);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [q]);
+  const items = useQuickSearch(query)?.data.items ?? [];
 
   const pick = async (hit: Hit) => {
     setOpening(`${hit.mediaType}-${hit.id}`);
@@ -243,7 +228,15 @@ export function TabBar({ user }: { user: TabBarUser }) {
         <div className="grid h-16 grid-cols-5">
           <Tab href="/" icon={<House className={icon} />} label="Home" active={pathname === "/"} />
           <Tab href="/search" icon={<Search className={icon} />} label="Search" active={pathname.startsWith("/search")} />
-          <button type="button" onClick={() => setSheet("log")} aria-label="Log something" className="grid place-items-center">
+          <button
+            type="button"
+            onClick={() => {
+              preloadLogForm();
+              setSheet("log");
+            }}
+            aria-label="Log something"
+            className="grid place-items-center"
+          >
             <span className="grid size-12 place-items-center rounded-full bg-accent text-white shadow-lg shadow-accent/30 active:scale-95">
               <Plus className="size-7" strokeWidth={2.5} />
             </span>

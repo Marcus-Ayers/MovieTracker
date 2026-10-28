@@ -2,6 +2,11 @@ import { Clapperboard } from "lucide-react";
 import Link from "next/link";
 import { Notice } from "@/components/page";
 
+/**
+ * The 404 page, for unknown addresses and for notFound() calls (a movie id that doesn't exist, an unknown
+ * username…).
+ */
+
 export default function NotFound() {
   return (
     <Notice icon={<Clapperboard className="size-6" />} title="Not found">

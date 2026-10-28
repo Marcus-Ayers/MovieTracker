@@ -85,6 +85,7 @@ export async function getRecapYears(userId: number): Promise<RecapYear[]> {
     });
 }
 
+/** Everything on one year's recap page for one person, or null if they logged nothing that year. */
 export async function buildRecap(userId: number, year: number): Promise<Recap | null> {
   const db = await getDb();
   const [all, priorRows] = await Promise.all([

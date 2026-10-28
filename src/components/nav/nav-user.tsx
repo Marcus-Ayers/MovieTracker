@@ -4,6 +4,11 @@ import { getCurrentUser, getSignInState } from "@/lib/auth";
 import { countIncomingRequests } from "@/lib/friends";
 import { AccountMenu } from "./account-menu";
 
+/**
+ * The right side of the header: a Sign in button, or the friends icon (with a badge for new requests) and your
+ * account menu.
+ */
+
 export async function NavUser() {
   const state = await getSignInState();
   if (state === "signed-out") {

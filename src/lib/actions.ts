@@ -12,6 +12,16 @@ import { getRateQueue } from "./rate-queue";
 import { cleanReview } from "./reviews";
 import { ensureTitle } from "./title-cache";
 
+/**
+ * Server actions: the functions the browser calls to change data. React forms and buttons call them like normal
+ * functions; Next.js turns each call into a request to the server. Every action checks who's signed in first and
+ * only touches that person's rows.
+ *
+ * Sections: accounts & settings, the diary (log, edit, delete, main review, "seen before"), the watchlist, the
+ * rating queue, and the ratings job. After most changes, refreshEverything() tells Next.js to re-render, so pages
+ * show the new data.
+ */
+
 export type ActionState = { ok: boolean; error?: string; savedAt?: number };
 
 /** FormData → plain object, treating empty inputs as missing. */
@@ -99,6 +109,10 @@ const settingsSchema = z.object({
   friendRequests: z.literal("on").optional(),
 });
 
+/**
+ * Saves the Settings form: display name, username (if it's free), privacy, social switches, browsing, streaming
+ * services and the rating pop-up.
+ */
 export async function updateSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser("/settings");
   const parsed = settingsSchema.safeParse(fields(formData));
@@ -170,6 +184,7 @@ export async function deleteAccount(confirmation: string): Promise<{ ok: boolean
   return { ok: true };
 }
 
+/** The home page's "Hide watched" switch. */
 export async function setHideWatched(hide: boolean) {
   const user = await requireUser();
   const db = await getDb();
@@ -215,6 +230,10 @@ async function upsertUserTitle(
     .onConflictDoUpdate({ target: [userTitles.userId, userTitles.titleId], set });
 }
 
+/**
+ * Logs a new diary entry, or edits one when the form has a viewingId. Cleans the review HTML, takes the title off
+ * your watchlist when it's new, and keeps only one main review per title.
+ */
 export async function saveViewing(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
   const parsed = viewingSchema.safeParse(fields(formData));
@@ -283,6 +302,7 @@ export async function saveViewing(_prev: ActionState, formData: FormData): Promi
   return { ok: true, savedAt: Date.now() };
 }
 
+/** Deletes one of your diary entries. */
 export async function deleteViewing(viewingId: number) {
   const user = await requireUser();
   const db = await getDb();
@@ -290,6 +310,7 @@ export async function deleteViewing(viewingId: number) {
   refreshEverything();
 }
 
+/** Makes one entry's review the main one for its title (and unsets the rest). */
 export async function setMainReview(viewingId: number) {
   const user = await requireUser();
   const db = await getDb();
@@ -305,6 +326,7 @@ export async function setMainReview(viewingId: number) {
   refreshEverything();
 }
 
+/** Adds or removes a "seen before" watch (never below zero). */
 export async function adjustPriorWatchCount(tmdbId: number, mediaType: MediaType, delta: number) {
   const user = await requireUser();
   const db = await getDb();
@@ -328,6 +350,7 @@ export async function setWatchlist(tmdbId: number, mediaType: MediaType, on: boo
   refreshEverything();
 }
 
+/** Adds a title to your watchlist, or takes it off. */
 export async function toggleWatchlist(tmdbId: number, mediaType: MediaType) {
   const user = await requireUser();
   const db = await getDb();

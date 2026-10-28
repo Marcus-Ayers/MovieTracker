@@ -15,6 +15,16 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+/**
+ * The database tables, defined with Drizzle ORM. After changing a table here, run `npm run db:generate` to write a
+ * migration into drizzle/ (applied automatically locally, and on every Vercel build).
+ *
+ * users (accounts and their settings) · titles (TMDB data cached per movie/show) with people and credits ·
+ * viewings (diary entries) and user_titles (watchlist, "seen before" counts) · lists and list_items · friendships
+ * · external_ratings and imdb_ratings (IMDb / Rotten Tomatoes / Metacritic scores) · plex_connections and
+ * plex_items · api_usage and job_runs (bookkeeping for the nightly job).
+ */
+
 export const mediaTypeEnum = pgEnum("media_type", ["movie", "tv"]);
 export const visibilityEnum = pgEnum("visibility", ["everyone", "friends", "private"]);
 export const creditRoleEnum = pgEnum("credit_role", ["director", "writer", "creator", "cast"]);

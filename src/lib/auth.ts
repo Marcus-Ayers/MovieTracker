@@ -113,6 +113,10 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
 export type SignInState = "signed-out" | "signed-in" | "needs-link";
 
+/**
+ * Whether you're signed out, signed in, or signed in to Clerk but still need to finish setting up (link an old
+ * account or start fresh).
+ */
 export const getSignInState = cache(async (): Promise<SignInState> => {
   const { userId } = await auth();
   if (!userId) return "signed-out";

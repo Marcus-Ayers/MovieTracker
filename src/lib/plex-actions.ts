@@ -20,6 +20,11 @@ import {
   syncPlex,
 } from "./plex";
 
+/**
+ * Server actions for Plex (Settings): connect with a Plex PIN, choose which Plex account's watch history is yours,
+ * sync now, import the full history for review, and disconnect. The Plex API calls themselves are in plex.ts.
+ */
+
 const validTimeZone = (tz: string) => {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
@@ -88,6 +93,7 @@ export async function finishPlexLink(timeZone: string): Promise<LinkStatus> {
   };
 }
 
+/** Which Plex account's watch history is yours (a Plex server can have several home users). */
 export async function setPlexAccount(accountId: number) {
   const user = await requireUser("/settings");
   const db = await getDb();
@@ -100,6 +106,7 @@ export async function setPlexAccount(accountId: number) {
   revalidatePath("/settings");
 }
 
+/** Forgets your Plex connection. Diary entries it already brought in stay. */
 export async function disconnectPlex() {
   const user = await requireUser("/settings");
   const db = await getDb();

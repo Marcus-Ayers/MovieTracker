@@ -2,34 +2,18 @@
 
 import { Plus, Search } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { QuickSearchResult } from "@/app/api/search/route";
 import { cn, tmdbImage } from "@/lib/format";
+import { useQuickSearch } from "@/lib/use-quick-search";
 
 export type SearchItem = QuickSearchResult["items"][number];
 
 /** Type to search TMDB; picking a result hands it to `onPick` and clears the box. */
 export function TitleSearch({ onPick, placeholder = "Add a movie or show…" }: { onPick: (item: SearchItem) => void; placeholder?: string }) {
   const [query, setQuery] = useState("");
-  const [found, setFound] = useState<{ query: string; items: SearchItem[] } | null>(null);
   const [focused, setFocused] = useState(false);
-  const q = query.trim();
-  const items = found && found.query === q ? found.items : [];
-
-  useEffect(() => {
-    if (q.length < 2) return;
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
-        .then((res) => res.json() as Promise<QuickSearchResult>)
-        .then((data) => setFound({ query: q, items: data.items }))
-        .catch(() => {});
-    }, 200);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [q]);
+  const items = useQuickSearch(query)?.data.items ?? [];
 
   const pick = (item: SearchItem) => {
     onPick(item);

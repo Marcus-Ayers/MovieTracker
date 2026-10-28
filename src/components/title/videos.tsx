@@ -6,6 +6,11 @@ import { useState } from "react";
 import type { Video } from "@/lib/tmdb";
 import { Modal } from "../ui/modal";
 
+/**
+ * Trailers and clips: a Trailer button and a strip of thumbnails that open a player. Nothing plays until you
+ * click.
+ */
+
 function Player({ video, onClose }: { video: Video | null; onClose: () => void }) {
   return (
     <Modal open={video !== null} onClose={onClose} label={video?.name ?? "Video"} size="xl" centered>
@@ -25,6 +30,7 @@ function Player({ video, onClose }: { video: Video | null; onClose: () => void }
   );
 }
 
+/** The Trailer button in a title's hero: plays the given trailer in a player. */
 export function TrailerButton({ trailer }: { trailer: Video }) {
   const [playing, setPlaying] = useState<Video | null>(null);
   return (
@@ -42,6 +48,7 @@ export function TrailerButton({ trailer }: { trailer: Video }) {
   );
 }
 
+/** Every trailer, teaser and clip as thumbnails; click one to play it. */
 export function VideoStrip({ videos }: { videos: Video[] }) {
   const [playing, setPlaying] = useState<Video | null>(null);
   // Videos removed from YouTube have no thumbnail; hide them.

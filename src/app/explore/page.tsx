@@ -16,6 +16,11 @@ import { formatRuntime, titleHref, tmdbImage } from "@/lib/format";
 import { getTitleState } from "@/lib/library";
 import { hasTmdbKey } from "@/lib/tmdb";
 
+/**
+ * /explore — personalized rows (lib/explore.ts). Each visit gets a random seed in the URL, so Shuffle makes a new
+ * page and refreshing or sharing keeps the same one.
+ */
+
 export const metadata: Metadata = { title: "Explore" };
 
 async function PickHero({ pick, userId }: { pick: ExplorePick; userId: number | null }) {

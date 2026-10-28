@@ -2,6 +2,11 @@ import { Lock } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/format";
 
+/**
+ * Shared page pieces: the page header (title and subtitle), notices ("This profile is private" and the like),
+ * empty states, and the loading skeleton.
+ */
+
 export function PageHeader({ title, subtitle, children, className }: { title: ReactNode; subtitle?: ReactNode; children?: ReactNode; className?: string }) {
   return (
     <header className={cn("flex flex-wrap items-end justify-between gap-4 px-4 pb-6 pt-28 sm:px-8 lg:px-12", className)}>
@@ -14,6 +19,7 @@ export function PageHeader({ title, subtitle, children, className }: { title: Re
   );
 }
 
+/** A centered message page (icon, title, text), e.g. "Sign in to see your library". */
 export function Notice({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
     <div className="mx-auto max-w-lg px-4 pb-10 pt-36 text-center">
@@ -24,6 +30,7 @@ export function Notice({ icon, title, children }: { icon: ReactNode; title: stri
   );
 }
 
+/** "This profile is private" (or "Friends only"), with room for an Add friend button. */
 export function PrivateNotice({ name, friendsOnly = false, children }: { name: string; friendsOnly?: boolean; children?: ReactNode }) {
   return (
     <Notice icon={<Lock className="size-6" />} title={friendsOnly ? "Friends only" : "This profile is private"}>
@@ -33,6 +40,7 @@ export function PrivateNotice({ name, friendsOnly = false, children }: { name: s
   );
 }
 
+/** A dashed box for empty lists ("Nothing logged yet"). */
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="mx-4 rounded-xl border border-dashed border-line px-6 py-16 text-center sm:mx-8 lg:mx-12">
@@ -42,6 +50,7 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
   );
 }
 
+/** Placeholder for a poster-grid page while it loads. */
 export function PageSkeleton() {
   return (
     <div className="px-4 pt-28 sm:px-8 lg:px-12">

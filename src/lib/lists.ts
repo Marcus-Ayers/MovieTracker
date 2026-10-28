@@ -1,7 +1,6 @@
 import "server-only";
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { getDb, listItems, lists, titles, users, type List, type Title } from "@/db";
-import { getProfileAccess } from "./auth";
 import type { CuratedList } from "./curated";
 import type { MediaType } from "./format";
 import { getSavedImdbScores } from "./ratings";
@@ -21,6 +20,7 @@ export type ListItemView = {
   caption?: string;
 };
 
+/** A title as a list item for the client (tier and caption optional). */
 export const toItemView = (t: Title, tier: string | null = null, caption?: string): ListItemView => ({
   titleId: t.id,
   tmdbId: t.tmdbId,
@@ -82,11 +82,6 @@ export async function getList(listId: number) {
     .where(eq(listItems.listId, listId))
     .orderBy(asc(listItems.position));
   return { ...row, items: items.map((i) => toItemView(i.title, i.tier)) };
-}
-
-/** Lists follow the owner's profile privacy: you, friends, or everyone. */
-export async function canViewListsOf(username: string) {
-  return (await getProfileAccess(username)).status === "ok";
 }
 
 /** Your lists, and whether this title is on each (for "Add to list" on title pages). */

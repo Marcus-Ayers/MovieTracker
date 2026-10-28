@@ -5,6 +5,10 @@ import { DiaryView } from "@/components/profile/diary-view";
 import { SignInNotice } from "@/components/profile/profile-nav";
 import { getCurrentUser } from "@/lib/auth";
 
+/**
+ * /diary — your diary (the view itself, shared with public profiles, is components/profile/diary-view.tsx).
+ */
+
 export const metadata: Metadata = { title: "Diary" };
 
 async function MyDiary({ searchParams }: { searchParams: PageProps<"/diary">["searchParams"] }) {

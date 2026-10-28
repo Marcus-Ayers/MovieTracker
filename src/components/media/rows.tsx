@@ -7,12 +7,20 @@ import { ScrollRow } from "./scroll-row";
 
 export type WatchedMap = Record<string, number | null>;
 
+/**
+ * Your rating for a title from a watched map: a number, null if you've watched it without rating, or undefined if
+ * you haven't watched it.
+ */
 export function myRatingFor(watched: WatchedMap | null, item: { mediaType: string; id: number }) {
   if (!watched) return undefined;
   const key = `${item.mediaType}-${item.id}`;
   return key in watched ? watched[key] : undefined;
 }
 
+/**
+ * A titled, sideways-scrolling row of posters. `captions` puts a line under particular posters (e.g. "Alex ·
+ * 9/10").
+ */
 export function PosterRow({
   title,
   subtitle,
@@ -79,6 +87,7 @@ export function Top10Row({ title, items, watched }: { title: string; items: Post
   );
 }
 
+/** Placeholder for a poster row while it loads. */
 export function RowSkeleton({ count = 8 }: { count?: number }) {
   return (
     <div className="px-4 sm:px-8 lg:px-12">

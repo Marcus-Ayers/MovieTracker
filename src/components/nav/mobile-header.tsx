@@ -9,6 +9,10 @@ import { cn } from "@/lib/format";
 // since a home-screen app has no browser back button.
 const ROOTS = ["/", "/search", "/diary", "/library", "/stats", "/watchlist", "/lists", "/friends", "/settings", "/movies", "/tv", "/explore", "/rate", "/recap"];
 
+/**
+ * Phones: a back button on inner pages (a movie, a person, someone's profile), since an installed web app has no
+ * browser back button.
+ */
 export function MobileBack() {
   const pathname = usePathname();
   const router = useRouter();

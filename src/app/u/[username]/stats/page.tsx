@@ -5,6 +5,10 @@ import { PageSkeleton } from "@/components/page";
 import { openProfile } from "@/components/profile/profile-nav";
 import { StatsView } from "@/components/profile/stats-view";
 
+/**
+ * /u/[username]/stats — someone's stats on their public profile, if their privacy setting lets you see it.
+ */
+
 export async function generateMetadata(props: PageProps<"/u/[username]/stats">): Promise<Metadata> {
   const { username } = await props.params;
   return { title: `@${username} · Stats` };

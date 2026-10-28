@@ -5,6 +5,10 @@ import { PageSkeleton } from "@/components/page";
 import { openProfile } from "@/components/profile/profile-nav";
 import { WatchlistView } from "@/components/profile/watchlist-view";
 
+/**
+ * /u/[username]/watchlist — someone's watchlist on their public profile, if their privacy setting lets you see it.
+ */
+
 export async function generateMetadata(props: PageProps<"/u/[username]/watchlist">): Promise<Metadata> {
   const { username } = await props.params;
   return { title: `@${username} · Watchlist` };

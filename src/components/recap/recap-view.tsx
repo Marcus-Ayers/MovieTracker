@@ -12,6 +12,11 @@ import { MONTHS, MONTHS_LONG } from "@/lib/stats";
 import { Top10Row } from "../media/rows";
 import { ShareButton } from "./share-button";
 
+/**
+ * Year in review: the list of years with something in them (RecapYears) and one year's recap (RecapView). All the
+ * numbers come from lib/recap.ts; this file only lays them out.
+ */
+
 const WEEKDAYS = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
 const pad = "px-4 sm:px-8 lg:px-12";
 

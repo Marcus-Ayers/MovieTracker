@@ -18,6 +18,12 @@ import { cn, formatRuntime, tmdbImage } from "@/lib/format";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/genres";
 import { DualRange, StepSlider } from "./range-slider";
 
+/**
+ * The filter panel on the Movies and TV pages: sort, genres, release years, score, votes, runtime, language,
+ * keywords, people and where to watch. A sticky sidebar on desktop; on phones, a sheet behind a floating Filters
+ * button. Every change goes into the URL, and the server reads the URL.
+ */
+
 type Named = { id: number; name: string };
 type Provider = { id: number; name: string; logoPath: string };
 
@@ -354,6 +360,10 @@ function FilterPanel({
   );
 }
 
+/**
+ * The filter panel for the Movies/TV pages: a sticky sidebar on desktop, a sheet behind a floating Filters button
+ * on phones.
+ */
 export function DiscoverSidebar(props: {
   filters: DiscoverFilters;
   providers: Provider[];

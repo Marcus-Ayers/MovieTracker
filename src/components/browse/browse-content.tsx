@@ -91,6 +91,10 @@ async function buildHero(items: MediaItem[], watched: WatchedMap | null): Promis
   );
 }
 
+/**
+ * The home page: the hero carousel plus every row. Personal rows (your watchlist, "Because you rated…", what
+ * friends watched) are added when you're signed in, and "Hide watched" filters the rest.
+ */
 export async function BrowseContent() {
   const user = await getCurrentUser();
   const showFriends = Boolean(user?.social && user.socialHome);
@@ -150,6 +154,7 @@ export async function BrowseContent() {
   );
 }
 
+/** Grey placeholder for the home page while its rows load. */
 export function BrowseSkeleton() {
   return (
     <>

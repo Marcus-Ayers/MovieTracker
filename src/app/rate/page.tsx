@@ -6,6 +6,11 @@ import { requireUser } from "@/lib/auth";
 import { plural } from "@/lib/format";
 import { getRateQueue } from "@/lib/rate-queue";
 
+/**
+ * /rate — the rating queue: everything you've watched without a rating, one card at a time
+ * (components/rate/rate-queue.tsx).
+ */
+
 export const metadata: Metadata = { title: "Rate what you've watched" };
 
 async function Queue() {

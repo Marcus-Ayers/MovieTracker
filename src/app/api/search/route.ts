@@ -1,6 +1,11 @@
 import type { NextRequest } from "next/server";
 import { hasTmdbKey, searchTitles } from "@/lib/tmdb";
 
+/**
+ * GET /api/search?q=… — quick search for the header box, the ＋ Log sheet and the "add a title" box on lists: the
+ * top few titles and people (useQuickSearch calls this).
+ */
+
 export type QuickSearchResult = {
   items: { id: number; mediaType: "movie" | "tv"; title: string; year: number | null; posterPath: string | null }[];
   people: { id: number; name: string; profilePath: string | null; knownFor: string }[];

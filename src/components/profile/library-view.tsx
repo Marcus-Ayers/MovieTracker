@@ -52,6 +52,10 @@ function periodLabel(period: string) {
   return period.length === 7 ? `${MONTHS_LONG[Number(period.slice(5)) - 1]} ${period.slice(0, 4)}` : period;
 }
 
+/**
+ * The library for one person: every title they've watched as posters, with sort, filters (in the URL) and the
+ * rating chips.
+ */
 export async function LibraryView({ profile, isOwn, base, searchParams }: ProfileViewProps) {
   const raw = await searchParams;
   const params: Record<string, string> = {};

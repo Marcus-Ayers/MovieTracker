@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { titles, viewings, type DB } from "@/db";
+import { mapLimit } from "./async";
 import type { MediaType } from "./format";
 import { reviewTextToHtml } from "./reviews";
 import { ensureTitle } from "./title-cache";
@@ -34,20 +35,6 @@ export type SaveRow = {
 
 export type SaveResult = { imported: number; datesFilled: number; skipped: number; failed: string[] };
 
-/** Runs `fn` over items with at most `limit` in flight, preserving order. */
-export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, async () => {
-      while (next < items.length) {
-        const i = next++;
-        out[i] = await fn(items[i]);
-      }
-    }),
-  );
-  return out;
-}
 
 type StatusItem = { key: string; mediaType: MediaType; tmdbId: number; watchedOn: string | null; seasonNumber: number | null };
 

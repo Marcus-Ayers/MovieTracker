@@ -3,7 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import type { Viewing } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import {
   cn,
@@ -18,7 +17,7 @@ import {
 } from "@/lib/format";
 import { getVisibleFriendIds } from "@/lib/friends";
 import { getListsWithTitle } from "@/lib/lists";
-import { getPublicTakes, getTakesBy, getTitleState, historyFor, type PublicTake } from "@/lib/library";
+import { getPublicTakes, getTakesBy, getTitleState, historyFor, toViewingDraft, type PublicTake } from "@/lib/library";
 import { getExternalRatings } from "@/lib/ratings";
 import {
   getCollection,
@@ -29,7 +28,7 @@ import {
 } from "@/lib/tmdb";
 import { DynamicMarker } from "../dynamic-marker";
 import { AddToListMenu } from "../lists/list-controls";
-import { LogButton, type LogTarget, type ViewingDraft } from "../log/log-button";
+import { LogButton, type LogTarget } from "../log/log-button";
 import { MissingKey } from "../missing-key";
 import { MyRatingBadge, PosterCard } from "../media/poster-card";
 import { PosterRow } from "../media/rows";
@@ -38,6 +37,14 @@ import { ScrollRow } from "../media/scroll-row";
 import { ReviewBody } from "./review-body";
 import { DeleteViewingButton, MainReviewButton, PriorWatchCounter, WatchlistButton } from "./title-buttons";
 import { TrailerButton, VideoStrip } from "./videos";
+
+/**
+ * A movie or TV show page (/movie/[id] and /tv/[id]).
+ *
+ * The TMDB parts (hero with scores and buttons, cast and crew, seasons, videos, where to watch, recommendations)
+ * render first and are cached. Everything personal streams in afterwards inside <Suspense>: your Log / Watchlist /
+ * Lists buttons, your diary for this title, and friends' and community ratings and reviews.
+ */
 
 export function TitlePage({ mediaType, params }: { mediaType: MediaType; params: Promise<{ id: string }> }) {
   if (!hasTmdbKey())
@@ -57,6 +64,7 @@ export function TitlePage({ mediaType, params }: { mediaType: MediaType; params:
   );
 }
 
+/** TMDB details for /movie/[id] or /tv/[id], or a 404 if the id isn't a number or TMDB doesn't know it. */
 export async function loadTitle(mediaType: MediaType, idParam: string) {
   const id = Number(idParam);
   if (!Number.isInteger(id) || id <= 0) notFound();
@@ -72,21 +80,6 @@ export async function loadTitle(mediaType: MediaType, idParam: string) {
 // Helpers shared by the personal sections
 // ---------------------------------------------------------------------------
 
-const toDraft = (v: Viewing): ViewingDraft => ({
-  id: v.id,
-  watchedOn: v.watchedOn,
-  seasonNumber: v.seasonNumber,
-  rating: v.rating,
-  liked: v.liked,
-  isRewatch: v.isRewatch,
-  reviewHtml: v.reviewHtml,
-  isMainReview: v.isMainReview,
-  containsSpoilers: v.containsSpoilers,
-  watchedWhere: v.watchedWhere,
-  format: v.format,
-  watchedWith: v.watchedWith,
-  tags: v.tags,
-});
 
 
 function PeopleLinks({ people }: { people: Person[] }) {
@@ -115,10 +108,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 async function TitleContent({ mediaType, params }: { mediaType: MediaType; params: Promise<{ id: string }> }) {
   const { id } = await params;
   const d = await loadTitle(mediaType, id);
-  const [ratings, collection] = await Promise.all([
-    getExternalRatings(d.imdbId),
-    d.collection ? getCollection(d.collection.id).catch(() => null) : null,
-  ]);
 
   const target: LogTarget = {
     tmdbId: d.id,
@@ -175,7 +164,10 @@ async function TitleContent({ mediaType, params }: { mediaType: MediaType; param
               <span className="text-muted">{d.genres.map((g) => g.name).join(" · ")}</span>
             </div>
 
-            <ScoreBadges tmdb={d.voteAverage || null} votes={d.voteCount} ratings={ratings} className="mb-5" />
+            {/* TMDB's score is here already; IMDb / RT / Metacritic stream in (the first view of a title asks OMDb). */}
+            <Suspense fallback={<ScoreBadges tmdb={d.voteAverage || null} votes={d.voteCount} ratings={null} className="mb-5" />}>
+              <Scores details={d} />
+            </Suspense>
 
             {d.tagline && <p className="mb-3 text-lg italic text-fg/80">“{d.tagline}”</p>}
             <p className="mb-5 max-w-2xl leading-relaxed text-fg/85">{d.overview}</p>
@@ -258,21 +250,10 @@ async function TitleContent({ mediaType, params }: { mediaType: MediaType; param
               </section>
             )}
 
-            {collection && collection.parts.length > 1 && (
-              <section>
-                <SectionTitle>Part of the {collection.name}</SectionTitle>
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-6">
-                  {collection.parts.map((part) => (
-                    <PosterCard
-                      key={part.id}
-                      item={part}
-                      sizes="160px"
-                      subtitle={part.year ? String(part.year) : "Upcoming"}
-                      className={cn(part.id === d.id && "opacity-50")}
-                    />
-                  ))}
-                </div>
-              </section>
+            {d.collection && (
+              <Suspense fallback={null}>
+                <SeriesSection collectionId={d.collection.id} currentId={d.id} />
+              </Suspense>
             )}
 
             {d.videos.length > 0 && (
@@ -308,6 +289,33 @@ async function TitleContent({ mediaType, params }: { mediaType: MediaType; param
         </div>
       )}
     </article>
+  );
+}
+
+async function Scores({ details: d }: { details: TitleDetails }) {
+  const ratings = await getExternalRatings(d.imdbId);
+  return <ScoreBadges tmdb={d.voteAverage || null} votes={d.voteCount} ratings={ratings} className="mb-5" />;
+}
+
+/** The other films in this one's series (e.g. every Harry Potter film), with this one dimmed. */
+async function SeriesSection({ collectionId, currentId }: { collectionId: number; currentId: number }) {
+  const collection = await getCollection(collectionId).catch(() => null);
+  if (!collection || collection.parts.length < 2) return null;
+  return (
+    <section>
+      <SectionTitle>Part of the {collection.name}</SectionTitle>
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-6">
+        {collection.parts.map((part) => (
+          <PosterCard
+            key={part.id}
+            item={part}
+            sizes="160px"
+            subtitle={part.year ? String(part.year) : "Upcoming"}
+            className={cn(part.id === currentId && "opacity-50")}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -514,7 +522,7 @@ async function YourActivity({ target }: { target: LogTarget }) {
                 )}
                 <span className="text-sm text-dim">{[v.watchedWhere, v.format, v.watchedWith && `with ${v.watchedWith}`].filter(Boolean).join(" · ")}</span>
                 <span className="ml-auto flex items-center gap-4">
-                  <LogButton target={target} existing={toDraft(v)} history={history} className="text-xs text-dim hover:text-fg">
+                  <LogButton target={target} existing={toViewingDraft(v)} history={history} className="text-xs text-dim hover:text-fg">
                     Edit
                   </LogButton>
                   {v.reviewHtml && !v.isMainReview && <MainReviewButton viewingId={v.id} />}
@@ -583,6 +591,7 @@ async function CommunityTakes({ target }: { target: LogTarget }) {
   return takes.length ? <TakesList title="From the community" takes={takes} mediaType={target.mediaType} /> : null;
 }
 
+/** Placeholder for a title page while it loads. */
 export function TitleSkeleton() {
   return (
     <div className="px-4 pt-28 sm:px-8 sm:pt-[22vh] lg:px-12">

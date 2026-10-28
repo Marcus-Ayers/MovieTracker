@@ -61,6 +61,7 @@ function slices(backup: Backup) {
 
 type Totals = { added: number; skipped: number; watchlist: number; seenBefore: number; lists: number; failed: string[] };
 
+/** Shown when you drop a MovieTracker backup on the import page: what's in it, then the restore with a progress bar. */
 export function RestorePanel({ backup, onCancel }: { backup: Backup; onCancel: () => void }) {
   const [withSettings, setWithSettings] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);

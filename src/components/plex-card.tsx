@@ -21,6 +21,7 @@ export type PlexCardData =
 
 const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+/** Settings → Plex: connect, choose whose watch history is yours, sync now, import the full history, or disconnect. */
 export function PlexCard({ data }: { data: PlexCardData }) {
   const router = useRouter();
   const [linking, setLinking] = useState<"idle" | "waiting" | "error">("idle");

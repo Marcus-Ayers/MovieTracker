@@ -18,6 +18,7 @@ export type ProfileViewProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+/** Where someone's public profile pages live: "/u/username". */
 export const profileBase = (username: string) => `/u/${username}`;
 
 /** For /u/[username]/… pages: whose profile to show, or the notice to show instead when it's private. */

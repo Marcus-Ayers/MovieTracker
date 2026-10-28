@@ -8,6 +8,11 @@ import { loadMoreDiscover } from "@/lib/discover-actions";
 import { cn, type MediaType } from "@/lib/format";
 import { DiscoverCard, DiscoverListItem } from "./discover-card";
 
+/**
+ * Results for the Movies and TV pages as a poster grid or a list, with Load more (which asks the server for the
+ * next page).
+ */
+
 export function DiscoverResults({
   media,
   query,

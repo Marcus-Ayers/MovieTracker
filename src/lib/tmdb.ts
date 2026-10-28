@@ -4,6 +4,13 @@ import type { Genre, SeasonInfo } from "@/db/schema";
 import type { MediaType } from "./format";
 import { FEATURED_SERVICES } from "./services";
 
+/**
+ * Every call to TMDB (The Movie Database), the source of all movie/TV details, images, credits, search,
+ * recommendations and streaming availability. Each function is cached with "use cache" (browse lists for hours,
+ * title details for days), so a page doesn't call TMDB again on every visit. Raw TMDB responses are mapped into
+ * the smaller shapes the rest of the site uses (MediaItem, TitleDetails…).
+ */
+
 const API = "https://api.themoviedb.org/3";
 
 /** The key in .env.local can be either TMDB credential: the long "API Read Access Token" or the short v3 "API Key". */
@@ -101,6 +108,7 @@ export async function getTrending(media: MediaType | "all", window: "day" | "wee
   return toItems(data.results, media === "all" ? undefined : media);
 }
 
+/** One of TMDB's movie lists: now playing, upcoming, popular or top rated. */
 export async function getMovieList(list: "now_playing" | "upcoming" | "popular" | "top_rated") {
   "use cache";
   cacheLife("hours");
@@ -112,13 +120,6 @@ export async function getMovieList(list: "now_playing" | "upcoming" | "popular" 
     items = items.filter((i) => !i.date || i.date >= today).sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
   }
   return items;
-}
-
-export async function getTvList(list: "popular" | "top_rated" | "on_the_air" | "airing_today") {
-  "use cache";
-  cacheLife("hours");
-  const data = await tmdb<Paged<RawItem>>(`/tv/${list}`);
-  return toItems(data.results, "tv");
 }
 
 /** TMDB's Discover endpoint: every filter/sort combo. Params are passed straight through. */
@@ -134,6 +135,7 @@ export async function discover(media: MediaType, params: Record<string, string |
   return { items: toItems(data.results, media), totalPages: data.total_pages, totalResults: data.total_results };
 }
 
+/** A title's logo image (English, or one without text) for the hero, or null. */
 export async function getLogoPath(media: MediaType, id: number) {
   "use cache";
   cacheLife("days");
@@ -149,6 +151,7 @@ function pickLogo(logos: { file_path: string; iso_639_1: string | null }[] | und
   return (logos.find((l) => l.iso_639_1 === "en") ?? logos[0]).file_path;
 }
 
+/** Movies, shows and people matching a search. */
 export async function searchTitles(query: string, page = 1) {
   "use cache";
   cacheLife("hours");
@@ -247,6 +250,7 @@ export async function findByExternalId(
 
 export type NamedId = { id: number; name: string };
 
+/** TMDB keywords matching some text (for the Movies/TV keyword filter). */
 export async function searchKeywords(query: string): Promise<NamedId[]> {
   "use cache";
   cacheLife("days");
@@ -254,6 +258,7 @@ export async function searchKeywords(query: string): Promise<NamedId[]> {
   return data.results.slice(0, 10);
 }
 
+/** One TMDB keyword by id, or null if it doesn't exist. */
 export async function getKeyword(id: number): Promise<NamedId | null> {
   "use cache";
   cacheLife("days");
@@ -264,6 +269,7 @@ export async function getKeyword(id: number): Promise<NamedId | null> {
   }
 }
 
+/** People matching a name (for the Movies/TV people filter). */
 export async function searchPeople(query: string): Promise<(Person & { knownFor: string })[]> {
   "use cache";
   cacheLife("days");
@@ -469,6 +475,10 @@ function common(raw: RawCommon) {
   };
 }
 
+/**
+ * Everything about one movie, in one TMDB call: details, credits, videos, US rating, where to watch,
+ * recommendations, keywords and logo.
+ */
 export async function getMovieDetails(id: number): Promise<TitleDetails> {
   "use cache";
   cacheLife("days");
@@ -520,6 +530,10 @@ export async function getMovieDetails(id: number): Promise<TitleDetails> {
   };
 }
 
+/**
+ * Everything about one TV show, in one TMDB call: details, credits across all seasons, videos, US rating, where to
+ * watch, recommendations, keywords and seasons.
+ */
 export async function getTvDetails(id: number): Promise<TitleDetails> {
   "use cache";
   cacheLife("days");
@@ -615,10 +629,12 @@ export async function getSeasonOverview(tvId: number, season: number): Promise<s
   return raw.overview?.trim() || null;
 }
 
+/** getMovieDetails or getTvDetails, depending on the type. */
 export function getTitleDetails(media: MediaType, id: number) {
   return media === "movie" ? getMovieDetails(id) : getTvDetails(id);
 }
 
+/** A film series (e.g. all the Harry Potter films), in release order. */
 export async function getCollection(id: number) {
   "use cache";
   cacheLife("days");
@@ -648,6 +664,7 @@ export type PersonDetails = {
   acting: PersonCredit[];
 };
 
+/** A person's details and filmography, split into directing, writing and acting. */
 export async function getPerson(id: number): Promise<PersonDetails> {
   "use cache";
   cacheLife("days");

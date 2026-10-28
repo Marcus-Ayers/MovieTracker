@@ -7,6 +7,11 @@ import { RecapView } from "@/components/recap/recap-view";
 import { getCurrentUser } from "@/lib/auth";
 import { parseRecapYear } from "@/lib/recap-year";
 
+/**
+ * /recap/[year] — your year in review (components/recap/recap-view.tsx). The shareable public copy is
+ * /u/[username]/recap/[year].
+ */
+
 export async function generateMetadata(props: PageProps<"/recap/[year]">): Promise<Metadata> {
   const { year } = await props.params;
   return { title: `${year} in review` };

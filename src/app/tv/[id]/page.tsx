@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { TitlePage } from "@/components/title/title-page";
 import { getTvDetails, hasTmdbKey } from "@/lib/tmdb";
 
+/**
+ * /tv/[id] — a TV show's page (the layout is components/title/title-page.tsx, shared with movies).
+ */
+
 export async function generateMetadata(props: PageProps<"/tv/[id]">): Promise<Metadata> {
   const { id } = await props.params;
   if (!hasTmdbKey()) return { title: "TV Show" };

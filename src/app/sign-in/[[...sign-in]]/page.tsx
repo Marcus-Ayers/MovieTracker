@@ -2,6 +2,11 @@ import { SignIn } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+/**
+ * /sign-in — Clerk's sign-in form. The [[...sign-in]] folder name lets Clerk use extra steps under it (e.g.
+ * /sign-in/factor-two).
+ */
+
 export const metadata: Metadata = { title: "Sign in" };
 
 export default function SignInPage() {

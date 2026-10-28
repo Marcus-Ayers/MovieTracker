@@ -22,6 +22,12 @@ import { getPlexImportRows } from "@/lib/plex-actions";
 import { cn, formatDate, plural, seasonLabel, titleHref, tmdbImage } from "@/lib/format";
 import { readBackup, RestorePanel } from "./restore-panel";
 
+/**
+ * Settings → Import, step by step: pick a source (Plex, Letterboxd, TMDB ratings, Netflix) or drop a backup,
+ * review what was matched (and what's already in your diary), then save in batches with a progress bar. Files are
+ * read right here in the browser; matching and saving are server actions in lib/import-actions.ts.
+ */
+
 type Entry = ImportRow & { match: ImportMatch | null; confidence: MatchConfidence; status: ImportStatus; include: boolean };
 type Stage =
   | { name: "pick"; error?: string }
@@ -200,6 +206,7 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: (patch: Partial
   );
 }
 
+/** The whole import flow on Settings → Import: choose files or Plex, review matches, save. */
 export function ImportWizard({ plexConnected = false, highlightPlex = false }: { plexConnected?: boolean; highlightPlex?: boolean }) {
   const [stage, setStage] = useState<Stage>({ name: "pick" });
   const [entries, setEntries] = useState<Entry[]>([]);

@@ -13,6 +13,10 @@ import { MEDIA_LABEL, tmdbImage } from "@/lib/format";
 import { getWatchedMap } from "@/lib/library";
 import { hasTmdbKey, searchTitles } from "@/lib/tmdb";
 
+/**
+ * /search?q=… — full search results: people, then movies and shows. On phones this is the Search tab.
+ */
+
 export const metadata: Metadata = { title: "Search" };
 
 /** The search box at the top of the page (the main way to search on phones, from the tab bar). */

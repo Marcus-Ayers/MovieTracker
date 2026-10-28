@@ -24,6 +24,10 @@ export function Avatar({ person, className }: { person: Person; className?: stri
   );
 }
 
+/**
+ * One person in a list: their letter avatar, name and @username (linking to their profile), with any buttons
+ * passed in on the right.
+ */
 export function PersonRow({ person, children }: { person: Person; children?: ReactNode }) {
   return (
     <li className="flex items-center gap-3 py-2.5">

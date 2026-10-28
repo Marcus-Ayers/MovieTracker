@@ -32,11 +32,13 @@ function headers(clientId: string, token?: string | null): Record<string, string
   return h;
 }
 
+/** Your saved Plex connection, or null. */
 export async function getPlexConnection(db: DB, userId: number) {
   const [row] = await db.select().from(plexConnections).where(eq(plexConnections.userId, userId));
   return row ?? null;
 }
 
+/** Your Plex connection row, creating it (with a new client id) the first time you connect. */
 export async function getOrCreatePlexConnection(db: DB, userId: number) {
   const existing = await getPlexConnection(db, userId);
   if (existing) return existing;
@@ -54,6 +56,7 @@ export async function createPin(clientId: string) {
   return (await res.json()) as { id: number; code: string };
 }
 
+/** The Plex sign-in page for a PIN; Plex sends you back to forwardUrl when you approve it. */
 export function plexAuthUrl(clientId: string, code: string, forwardUrl: string) {
   const params = new URLSearchParams({ clientID: clientId, code, forwardUrl, "context[device][product]": PRODUCT });
   return `https://app.plex.tv/auth#?${params.toString()}`;
@@ -79,6 +82,7 @@ export type PlexServer = {
   connections: { uri: string; local: boolean; relay: boolean }[];
 };
 
+/** Plex servers your account can reach, with the addresses to try for each. */
 export async function listServers(clientId: string, token: string): Promise<PlexServer[]> {
   const res = await fetch(`${PLEX_TV}/resources?includeHttps=1&includeRelay=1`, { headers: headers(clientId, token) });
   if (!res.ok) throw new Error(`Couldn't list your Plex servers (${res.status})`);
@@ -124,6 +128,7 @@ async function pms<T>(conn: ServerConn, path: string, extraHeaders: Record<strin
   return (await res.json()) as T;
 }
 
+/** What's needed to talk to your server (address, token, client id), or null if Plex isn't fully connected. */
 export function serverConn(c: PlexConnection): ServerConn | null {
   return c.serverUri && c.serverToken ? { uri: c.serverUri, token: c.serverToken, clientId: c.clientId } : null;
 }
@@ -155,6 +160,7 @@ type HistoryEntry = {
 
 const keyFrom = (path: string | undefined) => path?.split("/").pop() ?? undefined;
 
+/** Every play in one account's Plex watch history, a page at a time. */
 export async function fetchHistory(conn: ServerConn, accountId: number): Promise<HistoryEntry[]> {
   const out: HistoryEntry[] = [];
   const size = 500;

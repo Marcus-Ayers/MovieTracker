@@ -5,7 +5,7 @@ import Papa from "papaparse";
 import sanitizeHtml from "sanitize-html";
 import { getDb, listItems, lists, titles, userTitles, users, viewings, type DB } from "@/db";
 import { BACKUP_FILE, BACKUP_FORMAT, titleRef, type Backup, type BackupDiaryEntry, type BackupList, type BackupTitle } from "./backup-format";
-import { mapLimit } from "./import-save";
+import { mapLimit } from "./async";
 import { cleanReview } from "./reviews";
 import { ensureTitle } from "./title-cache";
 
@@ -312,28 +312,38 @@ export async function restoreBatch(
     }
   });
 
+  // One insert for the whole batch (titles deduplicated, which Postgres needs for ON CONFLICT DO UPDATE).
+  const watchlist = new Map<number, Date>();
   for (const w of batch.watchlist) {
     const titleId = titleIds.get(w.title);
-    if (!titleId) continue;
-    const addedAt = w.addedAt ? new Date(w.addedAt) : new Date();
-    await db
-      .insert(userTitles)
-      .values({ userId, titleId, onWatchlist: true, watchlistedAt: addedAt })
-      .onConflictDoUpdate({ target: [userTitles.userId, userTitles.titleId], set: { onWatchlist: true, watchlistedAt: addedAt } });
-    result.watchlist++;
+    if (titleId) watchlist.set(titleId, w.addedAt ? new Date(w.addedAt) : new Date());
   }
-
-  for (const s of batch.seenBefore) {
-    const titleId = titleIds.get(s.title);
-    if (!titleId) continue;
+  if (watchlist.size) {
     await db
       .insert(userTitles)
-      .values({ userId, titleId, priorWatchCount: s.count })
+      .values([...watchlist].map(([titleId, watchlistedAt]) => ({ userId, titleId, onWatchlist: true, watchlistedAt })))
       .onConflictDoUpdate({
         target: [userTitles.userId, userTitles.titleId],
-        set: { priorWatchCount: sql`greatest(${userTitles.priorWatchCount}, ${s.count})` },
+        set: { onWatchlist: true, watchlistedAt: sql`excluded.watchlisted_at` },
       });
-    result.seenBefore++;
+    result.watchlist += watchlist.size;
+  }
+
+  const seenBefore = new Map<number, number>();
+  for (const s of batch.seenBefore) {
+    const titleId = titleIds.get(s.title);
+    if (titleId) seenBefore.set(titleId, Math.max(s.count, seenBefore.get(titleId) ?? 0));
+  }
+  if (seenBefore.size) {
+    await db
+      .insert(userTitles)
+      .values([...seenBefore].map(([titleId, priorWatchCount]) => ({ userId, titleId, priorWatchCount })))
+      .onConflictDoUpdate({
+        target: [userTitles.userId, userTitles.titleId],
+        // Keep whichever count is higher: what's here already, or the backup's.
+        set: { priorWatchCount: sql`greatest(${userTitles.priorWatchCount}, excluded.prior_watch_count)` },
+      });
+    result.seenBefore += seenBefore.size;
   }
   return result;
 }

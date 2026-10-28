@@ -120,6 +120,7 @@ export function Hero({ items }: { items: HeroItem[] }) {
   );
 }
 
+/** Placeholder for the hero carousel while it loads. */
 export function HeroSkeleton() {
   return <div className="h-[78vh] min-h-[480px] w-full animate-pulse bg-surface sm:h-[88vh] sm:max-h-[900px]" />;
 }

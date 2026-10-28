@@ -9,7 +9,7 @@ import type { TitlePreview } from "@/app/api/preview/route";
 import { setWatchlist } from "@/lib/actions";
 import { cn, formatRuntime, type MediaType, plural, tmdbImage } from "@/lib/format";
 import { useIsTouch } from "@/lib/use-touch";
-import { LogDialog } from "../log/log-button";
+import { LogDialog, preloadLogForm } from "../log/log-button";
 import { Modal } from "../ui/modal";
 import { MyRatingBadge } from "./rating-badge";
 
@@ -135,6 +135,8 @@ export function PosterFrame({
       setPreview(p);
       setMine(m);
       setLoading(false);
+      // Signed in, so the Log button is about to show: start loading the log form.
+      if (m?.loggedIn) preloadLogForm();
     });
   };
   // Load details after a short hover, so scrolling past posters doesn't fetch everything.
@@ -218,8 +220,9 @@ export function PosterFrame({
 
       {badgeRating !== undefined && <MyRatingBadge rating={badgeRating} className="pointer-events-none absolute left-2 top-2" />}
 
-      {touch && (
-        <Modal open={sheetOpen} onClose={() => setSheetOpen(false)} label={title}>
+      {/* Only created when opened: a page can have hundreds of posters. */}
+      {touch && sheetOpen && (
+        <Modal open onClose={() => setSheetOpen(false)} label={title}>
           <div className="flex gap-4 p-5 pr-14">
             <div className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-lg bg-surface-3">
               {sheetPoster && <Image src={sheetPoster} alt="" fill sizes="112px" className="object-cover" />}

@@ -8,7 +8,7 @@ import type { RateExtras } from "@/app/api/rate-extras/route";
 import { loadRateQueue, rateFromQueue, setSkipRating } from "@/lib/actions";
 import { cn, formatDate, formatRuntime, plural, titleHref, tmdbImage } from "@/lib/format";
 import type { RateItem } from "@/lib/rate-queue";
-import { LogDialog } from "../log/log-button";
+import { LogDialog, preloadLogForm } from "../log/log-button";
 import { ScoreBadges } from "../media/score-badges";
 import { RATING_WORDS } from "../log/rating-picker";
 
@@ -372,7 +372,7 @@ export function RateQueue({
           <button type="button" onClick={dismiss} className="inline-flex items-center gap-1.5 hover:text-fg">
             <EyeOff className="size-4" /> Don&apos;t ask about this
           </button>
-          <button type="button" onClick={() => setReviewing(true)} className="inline-flex items-center gap-1.5 hover:text-fg">
+          <button type="button" onClick={() => setReviewing(true)} onPointerEnter={preloadLogForm} className="inline-flex items-center gap-1.5 hover:text-fg">
             <PenLine className="size-4" /> Write a review
           </button>
           <span className="ml-auto hidden text-xs text-dim sm:inline">

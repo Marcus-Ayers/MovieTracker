@@ -5,6 +5,11 @@ import { SignInNotice } from "@/components/profile/profile-nav";
 import { WatchlistView } from "@/components/profile/watchlist-view";
 import { getCurrentUser } from "@/lib/auth";
 
+/**
+ * /watchlist — your watchlist (the view itself, shared with public profiles, is
+ * components/profile/watchlist-view.tsx).
+ */
+
 export const metadata: Metadata = { title: "Watchlist" };
 
 async function MyWatchlist({ searchParams }: { searchParams: PageProps<"/watchlist">["searchParams"] }) {

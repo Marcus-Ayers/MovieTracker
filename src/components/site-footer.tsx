@@ -1,5 +1,9 @@
 import Image from "next/image";
 
+/**
+ * The footer, with the TMDB and JustWatch credits TMDB's terms ask for.
+ */
+
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-line/60 px-4 py-10 text-sm text-dim sm:px-8 lg:px-12">

@@ -3,6 +3,12 @@ import { getCreditsFor, getLibrary, watchedKey, type LibraryEntry } from "./libr
 import { getExternalRatings, type ExternalRatings } from "./ratings";
 import { discover, getMovieDetails, getPerson, getTrending, type MediaItem, type TitleDetails } from "./tmdb";
 
+/**
+ * The Explore page: rows built from your own taste. Recommendations pooled from your favorite films, directors and
+ * actors who come up a lot in your library, and the genres you rate highest, all limited to things you haven't
+ * seen. A seed makes each shuffle repeatable, so a shared Explore link shows the same rows.
+ */
+
 export type ExploreRow = { key: string; title: string; subtitle?: string; items: MediaItem[]; href?: string };
 export type ExplorePick = { details: TitleDetails; ratings: ExternalRatings | null; reason: string };
 export type Explore = { pick: ExplorePick | null; rows: ExploreRow[]; watched: Record<string, number | null> | null };
@@ -52,6 +58,7 @@ export function randomSeed() {
   return Math.floor(Math.random() * 1_000_000_000);
 }
 
+/** Every row on the Explore page for this seed (and for you, if signed in). */
 export async function buildExplore(seed: number, userId: number | null): Promise<Explore> {
   // Each section gets its own random stream, so sections don't affect each other's picks.
   const rng = (n: number) => seeded(seed * 31 + n * 7919);

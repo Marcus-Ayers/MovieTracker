@@ -4,9 +4,16 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { requireUser } from "./auth";
-import { getImportStatuses, mapLimit, saveImportRows, type ImportStatus, type SaveResult } from "./import-save";
+import { mapLimit } from "./async";
+import { getImportStatuses, saveImportRows, type ImportStatus, type SaveResult } from "./import-save";
 import type { ImportRow } from "./import-parse";
 import { getTvDetails, searchMovies, searchTv, type MovieSearchHit } from "./tmdb";
+
+/**
+ * Server actions behind Settings → Import (Letterboxd, TMDB ratings, Netflix, Plex). The browser reads and parses
+ * the files (import-parse.ts); these match each title to TMDB, flag what's already in your diary, and save in
+ * batches (import-save.ts).
+ */
 
 export type ImportMatch = { tmdbId: number; title: string; year: number | null; posterPath: string | null };
 export type MatchConfidence = "exact" | "check" | "none";
@@ -173,6 +180,7 @@ export async function commitImport(rows: z.infer<typeof commitInput>): Promise<C
   return saveImportRows(db, user.id, commitInput.parse(rows));
 }
 
+/** Called after the last batch of an import: refreshes every page so the new entries show up. */
 export async function finishImport() {
   await requireUser();
   revalidatePath("/", "layout");

@@ -10,6 +10,11 @@ import { requireUser } from "@/lib/auth";
 import { plural } from "@/lib/format";
 import { getFriendActivity, getFriendsOverview, searchPeople, type Relation } from "@/lib/friends";
 
+/**
+ * /friends — what friends watched, friend requests, finding people, and your friends list. Shows a notice instead
+ * when social features are off.
+ */
+
 export const metadata: Metadata = { title: "Friends" };
 
 function Panel({ title, children }: { title: ReactNode; children: ReactNode }) {

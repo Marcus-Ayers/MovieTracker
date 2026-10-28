@@ -8,6 +8,11 @@ import { requireUser } from "@/lib/auth";
 import { getPlexConnection } from "@/lib/plex";
 import { hasTmdbKey } from "@/lib/tmdb";
 
+/**
+ * /settings/import — bring in history from Plex, Letterboxd, TMDB or Netflix, or restore a backup
+ * (components/import/import-wizard.tsx).
+ */
+
 export const metadata: Metadata = { title: "Import" };
 
 async function ImportGate({ searchParams }: { searchParams: PageProps<"/settings/import">["searchParams"] }) {

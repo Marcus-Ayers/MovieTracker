@@ -5,6 +5,10 @@ import { PageSkeleton } from "@/components/page";
 import { DiaryView } from "@/components/profile/diary-view";
 import { openProfile } from "@/components/profile/profile-nav";
 
+/**
+ * /u/[username]/diary — someone's diary on their public profile, if their privacy setting lets you see it.
+ */
+
 export async function generateMetadata(props: PageProps<"/u/[username]/diary">): Promise<Metadata> {
   const { username } = await props.params;
   return { title: `@${username} · Diary` };

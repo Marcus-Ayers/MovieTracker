@@ -4,6 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/format";
 
+/**
+ * The desktop navigation links, with the current section highlighted.
+ */
+
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/movies", label: "Movies" },
@@ -40,6 +44,7 @@ function Links({ pathname }: { pathname: string | null }) {
   );
 }
 
+/** The desktop nav links, with the current page highlighted (it reads the URL, so it must sit inside <Suspense>). */
 export function NavLinks() {
   return <Links pathname={usePathname()} />;
 }

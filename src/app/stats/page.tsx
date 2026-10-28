@@ -5,6 +5,10 @@ import { SignInNotice } from "@/components/profile/profile-nav";
 import { StatsView } from "@/components/profile/stats-view";
 import { getCurrentUser } from "@/lib/auth";
 
+/**
+ * /stats — your stats (the view itself, shared with public profiles, is components/profile/stats-view.tsx).
+ */
+
 export const metadata: Metadata = { title: "Stats" };
 
 async function MyStats({ searchParams }: { searchParams: PageProps<"/stats">["searchParams"] }) {

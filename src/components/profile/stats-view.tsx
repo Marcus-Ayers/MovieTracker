@@ -14,6 +14,12 @@ import { getCreditsFor, getViewings, summarize, type ViewingWithTitle } from "@/
 import { computeStreaks, countBy, MONTHS, MONTHS_LONG, toDateString, type DayMap } from "@/lib/stats";
 import { backfillCollections, countUncheckedCollections } from "@/lib/title-cache";
 
+/**
+ * Stats (yours at /stats, someone else's at /u/[username]/stats), for all time, one year or one month: headline
+ * numbers, heatmaps, movies per month or year, favorite directors and actors, and rating / genre / decade /
+ * platform breakdowns. Most numbers link to the Library or Diary filtered to match.
+ */
+
 type View = "all" | "year" | "month";
 
 function href(base: string, view: View, year: number, month: number) {
@@ -174,6 +180,7 @@ function PeopleList({ people, empty }: { people: PersonStat[]; empty: string }) 
   );
 }
 
+/** The stats page for one person. The period comes from the URL (?view=year&year=2025). */
 export async function StatsView({ profile, isOwn, base, searchParams }: ProfileViewProps) {
   const params = await searchParams;
   const today = toDateString(new Date());

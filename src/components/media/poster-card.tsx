@@ -18,10 +18,18 @@ export type PosterItem = {
   genreIds?: number[];
 };
 
+/**
+ * Genre names for a poster: library titles already have names; TMDB list items only have genre ids, so those are
+ * looked up.
+ */
 export function posterGenres(item: PosterItem) {
   return item.genres ?? (item.genreIds ? genreNames(item.mediaType, item.genreIds) : undefined);
 }
 
+/**
+ * A poster with an optional caption underneath. Hover (or tap, on phones) for details and quick Log / Watchlist
+ * buttons.
+ */
 export function PosterCard({
   item,
   myRating,

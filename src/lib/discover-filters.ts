@@ -103,6 +103,7 @@ function range(value: string | undefined, min: number, max: number): [number, nu
   return [lo, hi];
 }
 
+/** Reads the Movies/TV filters out of the URL's query string, ignoring anything invalid. */
 export function parseFilters(media: MediaType, params: Params): DiscoverFilters {
   const sort = one(params, "sort");
   const year = (key: string) => {

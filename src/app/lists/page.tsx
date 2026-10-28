@@ -9,6 +9,10 @@ import { CURATED } from "@/lib/curated";
 import { getWatchedMap, watchedKey } from "@/lib/library";
 import { getCuratedPosters, getListSummaries } from "@/lib/lists";
 
+/**
+ * /lists — your lists and tier lists, plus the featured ones everyone sees (lib/curated.ts).
+ */
+
 export const metadata: Metadata = { title: "Lists" };
 
 const grid = "grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";

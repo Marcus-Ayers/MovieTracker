@@ -5,6 +5,10 @@ import { PageSkeleton } from "@/components/page";
 import { ListsView } from "@/components/profile/lists-view";
 import { openProfile } from "@/components/profile/profile-nav";
 
+/**
+ * /u/[username]/lists — someone's lists and tier lists, if their privacy setting lets you see them.
+ */
+
 export async function generateMetadata(props: PageProps<"/u/[username]/lists">): Promise<Metadata> {
   const { username } = await props.params;
   return { title: `@${username} · Lists` };

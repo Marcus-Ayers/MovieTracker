@@ -3,6 +3,11 @@
 import { TriangleAlert } from "lucide-react";
 import { useEffect } from "react";
 
+/**
+ * Shown in place of a page that crashed: a short message and a Try again button (Next.js renders this
+ * automatically).
+ */
+
 export default function ErrorPage({ error, retry }: { error: unknown; retry: () => void }) {
   useEffect(() => {
     console.error(error);

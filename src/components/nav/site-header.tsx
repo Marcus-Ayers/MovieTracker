@@ -6,6 +6,12 @@ import { NavLinks, NavLinksFallback } from "./nav-links";
 import { NavSearch } from "./nav-search";
 import { NavUser } from "./nav-user";
 
+/**
+ * The fixed header on every page. Desktop: logo, nav links, search and your account. Phones: a back button on
+ * inner pages, the logo, your account, and browse chips on browse pages; everything else is in the bottom tab bar
+ * (tab-bar.tsx).
+ */
+
 export function SiteHeader() {
   return (
     <HeaderShell>

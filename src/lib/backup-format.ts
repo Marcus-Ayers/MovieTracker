@@ -82,4 +82,5 @@ export type BackupTitle = z.infer<typeof backupTitle>;
 export type BackupDiaryEntry = z.infer<typeof backupDiaryEntry>;
 export type BackupList = z.infer<typeof backupList>;
 
+/** How a backup refers to a title: "movie-949", "tv-1396". */
 export const titleRef = (mediaType: "movie" | "tv", tmdbId: number) => `${mediaType}-${tmdbId}`;

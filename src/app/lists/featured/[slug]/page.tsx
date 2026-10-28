@@ -15,6 +15,11 @@ import { getWatchedMap, watchedKey } from "@/lib/library";
 import { internetTiers, loadCuratedTitles } from "@/lib/lists";
 import { DEFAULT_TIERS } from "@/lib/tiers";
 
+/**
+ * /lists/featured/[slug] — a featured list (numbered if it's "in order") or a tier list ranked by IMDb ratings,
+ * with how many you've seen and a button to copy it into your own lists.
+ */
+
 export async function generateMetadata(props: PageProps<"/lists/featured/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
   return { title: getCurated(slug)?.title ?? "List" };

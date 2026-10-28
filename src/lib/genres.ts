@@ -41,6 +41,7 @@ export const TV_GENRES: Record<number, string> = {
   37: "Western",
 };
 
+/** TMDB genre ids → names (TMDB lists only give ids). */
 export function genreNames(mediaType: "movie" | "tv", ids: number[]) {
   const table = mediaType === "movie" ? MOVIE_GENRES : TV_GENRES;
   return ids.map((id) => table[id]).filter(Boolean);

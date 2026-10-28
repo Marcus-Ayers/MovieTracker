@@ -319,6 +319,10 @@ function letterboxdKind(fileName: string): keyof LetterboxdFiles | null {
   return null;
 }
 
+/**
+ * Reads whatever files you dropped (Letterboxd ZIP or CSVs, TMDB ratings CSV, Netflix viewing history, a backup)
+ * and turns them into rows to review. Runs in the browser.
+ */
 export async function parseImportFiles(files: File[]): Promise<ParseResult> {
   const letterboxd: LetterboxdFiles = {};
   const results: ParseResult[] = [];

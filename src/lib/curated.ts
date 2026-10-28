@@ -360,4 +360,5 @@ export const CURATED: CuratedList[] = [
   },
 ];
 
+/** A featured list by its URL slug, or null. */
 export const getCurated = (slug: string) => CURATED.find((l) => l.slug === slug) ?? null;

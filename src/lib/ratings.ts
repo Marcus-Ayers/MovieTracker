@@ -113,6 +113,10 @@ export async function getSavedImdbScores(imdbIds: string[]): Promise<Map<string,
   return scores;
 }
 
+/**
+ * IMDb, Rotten Tomatoes and Metacritic for one title. Uses what's saved; if Rotten Tomatoes/Metacritic were never
+ * looked up (or are due a refresh), asks OMDb once and saves the answer.
+ */
 export async function getExternalRatings(imdbId: string | null): Promise<ExternalRatings | null> {
   if (!imdbId) return null;
   const db = await getDb();
