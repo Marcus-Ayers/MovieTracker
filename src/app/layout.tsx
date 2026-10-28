@@ -2,8 +2,11 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
+import { InstallHint } from "@/components/install-hint";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/nav/site-header";
+import { TabBarPlaceholder } from "@/components/nav/tab-bar";
+import { TabBarGate } from "@/components/nav/tab-bar-gate";
 import { RatePrompt } from "@/components/rate/rate-prompt";
 import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
@@ -21,10 +24,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "MovieTracker", template: "%s · MovieTracker" },
   description: "Find something to watch, and keep a diary of everything you've seen.",
+  applicationName: "MovieTracker",
+  // Added to an iPhone's Home Screen, it opens full-screen with a black status bar.
+  appleWebApp: { capable: true, title: "MovieTracker", statusBarStyle: "black" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
   themeColor: "#0b0b0e",
+  // Lets the layout use the whole screen on iPhones; the header and tab bar pad themselves for the notch and home bar.
+  viewportFit: "cover",
 };
 
 /** The "rate your new Plex watches" pop-up, for signed-in people who haven't turned it off. */
@@ -61,6 +70,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <SiteFooter />
           <Suspense>
             <RatePromptGate />
+          </Suspense>
+          <Suspense fallback={<TabBarPlaceholder />}>
+            <TabBarGate />
+          </Suspense>
+          <Suspense>
+            <InstallHint />
           </Suspense>
         </ClerkProvider>
       </body>

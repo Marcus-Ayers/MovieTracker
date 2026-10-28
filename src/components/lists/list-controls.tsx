@@ -44,7 +44,7 @@ export function NewListButton({ kind, primary = false }: { kind: "list" | "tier"
         {kind === "tier" ? <Rows3 className="size-4" /> : <Plus className="size-4" />}
         {kind === "tier" ? "New tier list" : "New list"}
       </button>
-      <Modal open={open} onClose={() => setOpen(false)} label={kind === "tier" ? "New tier list" : "New list"} className="w-[min(94vw,30rem)]">
+      <Modal open={open} onClose={() => setOpen(false)} label={kind === "tier" ? "New tier list" : "New list"} size="sm">
         <form
           className="space-y-4 p-6"
           onSubmit={(e) => {

@@ -67,6 +67,13 @@ async function Settings() {
           canRunNow: admin,
         }}
       />
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <h2 className="mb-1 font-semibold">Install on your iPhone</h2>
+        <p className="text-sm text-muted">
+          Open this site in Safari, tap Share (under ••• on newer iPhones), then <span className="text-fg">Add to Home Screen</span>. It gets its own
+          icon and opens full screen, like an app. Sign in once inside it; it doesn&apos;t share Safari&apos;s sign-in.
+        </p>
+      </section>
       <DeleteAccountCard username={user.username} />
     </div>
   );

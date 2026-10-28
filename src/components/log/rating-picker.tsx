@@ -25,7 +25,8 @@ export function RatingPicker({ name, defaultValue }: { name: string; defaultValu
   return (
     <div>
       <input type="hidden" name={name} value={value ?? ""} />
-      <div className="flex gap-1" onMouseLeave={() => setHover(null)}>
+      {/* Two rows of five on phones, so each number is a decent tap target. */}
+      <div className="grid grid-cols-5 gap-1.5 sm:flex sm:gap-1" onMouseLeave={() => setHover(null)}>
         {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
           const filled = shown !== null && n <= shown;
           return (
@@ -37,7 +38,7 @@ export function RatingPicker({ name, defaultValue }: { name: string; defaultValu
               onMouseEnter={() => setHover(n)}
               onClick={() => setValue(value === n ? null : n)}
               className={cn(
-                "h-10 flex-1 rounded text-sm font-bold transition",
+                "h-11 flex-1 rounded text-base font-bold transition sm:h-10 sm:text-sm",
                 filled ? "bg-gold text-black" : "bg-surface-3 text-muted hover:bg-surface-2",
                 value === n && "ring-2 ring-white/80 ring-offset-2 ring-offset-surface",
               )}

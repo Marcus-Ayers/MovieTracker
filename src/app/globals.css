@@ -26,6 +26,15 @@
   --color-tvheat-4: #4aa8ff;
 
   --animate-fade-up: fade-up 0.7s ease-out both;
+  --animate-sheet-up: sheet-up 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
   @keyframes fade-up {
     from {
       opacity: 0;
@@ -46,11 +55,34 @@
 html {
   color-scheme: dark;
   background: var(--color-bg);
+  -webkit-tap-highlight-color: transparent;
+  /* Height of the phone tab bar (0 on wider screens), so fixed things can sit above it. */
+  --tabbar-h: calc(4rem + env(safe-area-inset-bottom));
+  @media (width >= 48rem) {
+    --tabbar-h: 0px;
+  }
+}
+
+/* iPhone Safari zooms into any text box under 16px when you tap it. Not layered, so it beats text-sm. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea,
+  [contenteditable="true"] {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Don't let the page scroll behind an open dialog or sheet. */
+html:has(dialog[open]) {
+  overflow: hidden;
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-fg);
+  /* Room for the phone tab bar. */
+  padding-bottom: var(--tabbar-h);
 }
 
 ::selection {

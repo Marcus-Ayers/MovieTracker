@@ -8,7 +8,7 @@ import { Modal } from "../ui/modal";
 
 function Player({ video, onClose }: { video: Video | null; onClose: () => void }) {
   return (
-    <Modal open={video !== null} onClose={onClose} label={video?.name ?? "Video"} className="w-[min(96vw,68rem)]">
+    <Modal open={video !== null} onClose={onClose} label={video?.name ?? "Video"} size="xl" centered>
       {video && (
         <div className="aspect-video w-full bg-black">
           {/* Only plays because you clicked; nothing on the site autoplays. */}

@@ -1,4 +1,6 @@
+import { Search } from "lucide-react";
 import type { Metadata } from "next";
+import Form from "next/form";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -13,6 +15,24 @@ import { hasTmdbKey, searchTitles } from "@/lib/tmdb";
 
 export const metadata: Metadata = { title: "Search" };
 
+/** The search box at the top of the page (the main way to search on phones, from the tab bar). */
+function SearchBox({ query }: { query: string }) {
+  return (
+    <Form action="/search" className="relative mx-4 mb-8 max-w-xl sm:mx-8 lg:mx-12">
+      <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-dim" />
+      <input
+        name="q"
+        type="search"
+        defaultValue={query}
+        placeholder="Movies, shows, people"
+        autoFocus={!query}
+        enterKeyHint="search"
+        className="h-12 w-full rounded-full border border-line bg-surface pl-12 pr-4 outline-none transition focus:border-fg/50"
+      />
+    </Form>
+  );
+}
+
 async function Results({ searchParams }: { searchParams: PageProps<"/search">["searchParams"] }) {
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
@@ -20,7 +40,10 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
     return (
       <>
         <PageHeader title="Search" />
-        <EmptyState title="Search for a movie, show, or person">Press / or ⌘K anywhere to open search.</EmptyState>
+        <SearchBox query="" />
+        <EmptyState title="Search for a movie, show, or person">
+          <span className="hidden md:inline">Press / or ⌘K anywhere to open search.</span>
+        </EmptyState>
       </>
     );
   }
@@ -31,6 +54,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
   return (
     <>
       <PageHeader title={<>Results for “{query}”</>} subtitle={`${items.length} titles${people.length ? ` · ${people.length} people` : ""}`} />
+      <SearchBox query={query} />
       {people.length > 0 && (
         <div className="no-scrollbar mb-10 flex gap-5 overflow-x-auto px-4 sm:px-8 lg:px-12">
           {people.map((p) => (

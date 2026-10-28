@@ -341,7 +341,8 @@ function LogForm({
         </details>
       </div>
 
-      <div className="mt-7 flex items-center justify-end gap-3">
+      {/* Pinned to the bottom of the sheet on phones, so Save is always in reach. */}
+      <div className="sticky bottom-0 -mx-5 mt-7 flex items-center justify-end gap-3 border-t border-line bg-surface px-5 py-3 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
         {state.error && <p className="mr-auto text-sm text-accent">{state.error}</p>}
         <button type="button" onClick={onDone} className="rounded px-4 py-2 text-sm text-muted hover:text-fg">
           Cancel
@@ -349,7 +350,7 @@ function LogForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-accent px-6 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-60"
+          className="rounded bg-accent px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-60 sm:py-2"
         >
           {pending ? "Saving…" : existing ? "Save changes" : "Save to diary"}
         </button>

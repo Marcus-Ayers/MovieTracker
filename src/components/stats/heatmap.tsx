@@ -21,12 +21,15 @@ function countLabel(kind: Kind, n: number) {
 
 type HoverHandler = (date: string | null, el?: HTMLElement) => void;
 
+// Phones can't hover: a tap opens the day panel instead, so skip the floating popup there.
+const canHover = () => !window.matchMedia("(hover: none)").matches;
+
 /** Hover and keyboard focus both show the day popup. */
 function hoverProps(date: string, onHover: HoverHandler) {
   return {
-    onPointerEnter: (e: PointerEvent<HTMLElement>) => onHover(date, e.currentTarget),
+    onPointerEnter: (e: PointerEvent<HTMLElement>) => e.pointerType !== "touch" && canHover() && onHover(date, e.currentTarget),
     onPointerLeave: () => onHover(null),
-    onFocus: (e: FocusEvent<HTMLElement>) => onHover(date, e.currentTarget),
+    onFocus: (e: FocusEvent<HTMLElement>) => canHover() && onHover(date, e.currentTarget),
     onBlur: () => onHover(null),
   };
 }

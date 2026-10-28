@@ -47,7 +47,7 @@ export function RatePrompt() {
   const extra = prompt.total - prompt.items.length;
 
   return (
-    <Modal open={open} onClose={close} label="Rate what you just watched" className="w-[min(94vw,48rem)]">
+    <Modal open={open} onClose={close} label="Rate what you just watched" size="lg">
       <div className="p-5 sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-widest text-accent">New on Plex</p>
         <h2 className="mb-5 mt-1 pr-8 text-xl font-bold sm:text-2xl">

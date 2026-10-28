@@ -75,7 +75,7 @@ function Tile({
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
           onClick={onRemove}
-          className="absolute -right-1.5 -top-1.5 z-10 hidden size-6 place-items-center rounded-full bg-black/90 text-muted shadow ring-1 ring-line hover:text-fg focus-visible:grid group-hover/tile:grid"
+          className="absolute -right-1.5 -top-1.5 z-10 hidden size-6 place-items-center rounded-full bg-black/90 text-muted shadow ring-1 ring-line hover:text-fg focus-visible:grid group-hover/tile:grid [@media(hover:none)]:grid [@media(hover:none)]:size-7"
         >
           <X className="size-3.5" />
         </button>
@@ -289,7 +289,7 @@ function TierLabel({ tier, editable, onRename, onDelete }: { tier: Tier; editabl
           type="button"
           onClick={onDelete}
           aria-label={`Delete tier ${tier.label}`}
-          className="absolute right-0.5 top-0.5 hidden size-5 place-items-center rounded-full bg-black/60 text-white group-hover/label:grid"
+          className="absolute right-0.5 top-0.5 hidden size-5 place-items-center rounded-full bg-black/60 text-white group-hover/label:grid [@media(hover:none)]:grid [@media(hover:none)]:size-6"
         >
           <X className="size-3" />
         </button>

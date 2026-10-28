@@ -383,14 +383,14 @@ export function DiscoverSidebar(props: {
       <button
         type="button"
         onClick={() => setSheetOpen(true)}
-        className="fixed bottom-5 left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-fg px-5 py-3 text-sm font-semibold text-bg shadow-2xl shadow-black lg:hidden"
+        className="fixed bottom-[calc(var(--tabbar-h)+1rem)] left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-fg px-5 py-3 text-sm font-semibold text-bg shadow-2xl shadow-black lg:hidden"
       >
         <SlidersHorizontal className="size-4" /> Filters{props.activeCount > 0 && ` (${props.activeCount})`}
       </button>
       {sheetOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button type="button" aria-label="Close filters" className="absolute inset-0 bg-black/70" onClick={() => setSheetOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-4 pb-24 pt-4">
+          <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] animate-sheet-up overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4">
             <div className="mb-2 flex items-center justify-between">
               <p className="font-semibold">Filters</p>
               <button type="button" onClick={() => setSheetOpen(false)} className="rounded-full bg-fg px-4 py-1.5 text-sm font-semibold text-bg">
