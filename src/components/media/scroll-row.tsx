@@ -59,10 +59,12 @@ export function ScrollRow({
         {subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}
       </div>
       <div className="relative">
+        {/* Sideways only. Without overflow-y-hidden, anything a little taller than the row (the Top 10 row's giant
+            numbers) makes the row scroll vertically too, so the mouse wheel scrolls the row instead of the page. */}
         <div
           ref={scroller}
           onScroll={update}
-          className="no-scrollbar flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 pb-4 pt-1 sm:scroll-px-8 sm:gap-3 sm:px-8 lg:scroll-px-12 lg:px-12"
+          className="no-scrollbar flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-1 sm:scroll-px-8 sm:gap-3 sm:px-8 lg:scroll-px-12 lg:px-12"
         >
           {children}
         </div>

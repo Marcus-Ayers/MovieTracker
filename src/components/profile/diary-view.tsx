@@ -128,7 +128,7 @@ export async function DiaryView({ profile, isOwn, base, searchParams }: ProfileV
       </PageHeader>
       {base && <ProfileTabs profile={profile} base={base} active="diary" />}
       {years.length > 0 && (
-        <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto px-4 sm:px-8 lg:px-12">
+        <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto overflow-y-hidden px-4 sm:px-8 lg:px-12">
           {[null, ...years].map((y) => (
             <Link
               key={y ?? "all"}

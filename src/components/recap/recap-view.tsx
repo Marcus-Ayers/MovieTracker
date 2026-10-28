@@ -32,7 +32,7 @@ function Poster({ title, className }: { title: Title; className?: string }) {
 
 function YearPills({ years, current, base }: { years: RecapYear[]; current: number; base: string }) {
   return (
-    <nav className="no-scrollbar mb-8 flex gap-2 overflow-x-auto">
+    <nav className="no-scrollbar mb-8 flex gap-2 overflow-x-auto overflow-y-hidden">
       {years.map((y) => (
         <Link
           key={y.year}

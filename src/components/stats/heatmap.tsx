@@ -114,7 +114,7 @@ function YearGrid({
   const gap = compact ? "gap-[2px]" : "gap-[3px]";
 
   return (
-    <div className="no-scrollbar overflow-x-auto pb-1">
+    <div className="no-scrollbar overflow-x-auto overflow-y-hidden pb-1">
       <div className="inline-flex flex-col">
         {/* Month names over the week where each month starts. */}
         <div className={cn("flex", gap, !compact && "ml-8")} aria-hidden>

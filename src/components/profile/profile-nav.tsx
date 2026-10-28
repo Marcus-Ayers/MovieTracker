@@ -59,7 +59,7 @@ async function ProfileFriendButton({ profile }: { profile: CurrentUser }) {
 /** Tabs across someone's public profile. */
 export function ProfileTabs({ profile, base, active }: { profile: CurrentUser; base: string; active: ProfileSection }) {
   return (
-    <nav className="no-scrollbar -mt-2 mb-6 flex items-center gap-2 overflow-x-auto px-4 sm:px-8 lg:px-12">
+    <nav className="no-scrollbar -mt-2 mb-6 flex items-center gap-2 overflow-x-auto overflow-y-hidden px-4 sm:px-8 lg:px-12">
       <span className="mr-2 shrink-0 text-sm text-dim">@{profile.username}</span>
       {SECTIONS.map((s) => (
         <Link
