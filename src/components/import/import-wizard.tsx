@@ -218,10 +218,10 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
     if (!files.length) return;
     try {
       setStage({ name: "working", label: "Reading your files…", done: 0, total: 1 });
-      // A MovieTracker export restores as-is instead of going through matching.
+      // A Row Six export restores as-is instead of going through matching.
       const backup = await readBackup(files);
       if (backup === "invalid") {
-        setStage({ name: "pick", error: "That looks like a MovieTracker backup, but it couldn't be read. Is it the original export file?" });
+        setStage({ name: "pick", error: "That looks like a Row Six backup, but it couldn't be read. Is it the original export file?" });
         return;
       }
       if (backup) {
@@ -441,7 +441,7 @@ export function ImportWizard({ plexConnected = false, highlightPlex = false }: {
           <Upload className="size-8 text-muted" />
           <span className="text-lg font-semibold">Drop your export files here, or click to choose</span>
           <span className="text-sm text-muted">
-            Letterboxd .zip (or its diary/reviews/ratings CSVs), TMDB ratings CSVs, Netflix viewing history, or a MovieTracker export to
+            Letterboxd .zip (or its diary/reviews/ratings CSVs), TMDB ratings CSVs, Netflix viewing history, or a Row Six export to
             restore. You can pick several at once.
           </span>
         </button>

@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
 import { ImageResponse } from "next/og";
+import { SeatRow } from "@/components/brand-mark";
 import { getDb, users } from "@/db";
 import { tmdbImage } from "@/lib/format";
 import { buildRecap } from "@/lib/recap";
 
-export const alt = "A year in film on MovieTracker";
+export const alt = "A year in film on Row Six";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -48,9 +49,9 @@ export default async function Image({ params }: { params: Promise<{ username: st
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: "#0b0b0e", color: "#ededf0", padding: "56px 64px" }}>
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-          <div style={{ display: "flex", fontSize: 30, fontFamily: "Geist", letterSpacing: -1 }}>
-            <span style={{ color: RED }}>MOVIE</span>
-            <span>TRACKER</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 30, fontFamily: "Geist", letterSpacing: -1 }}>
+            <SeatRow width={78} />
+            <span>ROW SIX</span>
           </div>
           <div style={{ display: "flex", marginTop: 48, fontSize: 26, color: RED, textTransform: "uppercase", letterSpacing: 6 }}>
             {recap ? `${profile!.displayName}'s year in film` : "Year in review"}

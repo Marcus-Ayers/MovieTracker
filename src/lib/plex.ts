@@ -15,7 +15,7 @@ import { findByExternalId, getTvDetails } from "./tmdb";
  * - Each library item's TMDB id comes from its Plex GUIDs (tmdb://, imdb://, tvdb://), cached in plex_items.
  */
 
-const PRODUCT = "MovieTracker";
+const PRODUCT = "Row Six";
 const PLEX_TV = "https://plex.tv/api/v2";
 
 export type PlexConnection = typeof plexConnections.$inferSelect;

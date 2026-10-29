@@ -1,8 +1,9 @@
 "use client";
 
-import { Clapperboard, Share, X } from "lucide-react";
+import { Share, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
+import { SeatRow } from "./brand-mark";
 
 const DISMISSED = "install-hint-dismissed";
 
@@ -37,11 +38,12 @@ export function InstallHint() {
 
   return (
     <div className="fixed inset-x-3 bottom-[calc(var(--tabbar-h)+0.75rem)] z-30 flex items-start gap-3 rounded-2xl border border-line bg-surface-2/95 p-4 shadow-2xl shadow-black backdrop-blur md:hidden">
-      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent-hover to-accent text-white">
-        <Clapperboard className="size-6" />
+      {/* A small copy of the app icon (lib/app-icon.tsx). */}
+      <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-gradient-to-br from-[#202027] to-bg to-65%">
+        <SeatRow screen className="w-9" />
       </span>
       <div className="min-w-0 flex-1 text-sm">
-        <p className="font-semibold">Put MovieTracker on your Home Screen</p>
+        <p className="font-semibold">Put Row Six on your Home Screen</p>
         <p className="mt-0.5 text-muted">
           Tap <Share className="inline size-4 align-text-bottom" /> Share (under ••• on newer iPhones), then <span className="text-fg">Add to Home Screen</span>.
         </p>

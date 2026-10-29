@@ -1,4 +1,4 @@
-# MovieTracker — Plan
+# Row Six — Plan
 
 > Placeholder name. A personal site for finding things to watch (Netflix-style browsing) and logging everything you've watched (Letterboxd-style diary + GitHub-style stats).
 

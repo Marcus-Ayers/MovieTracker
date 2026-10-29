@@ -1,4 +1,4 @@
-# MovieTracker
+# Row Six
 
 A personal movie & TV site: Netflix-style browsing on top, a Letterboxd-style diary underneath, and GitHub-style stats. See [PLAN.md](PLAN.md) for the full plan.
 

@@ -12,7 +12,7 @@ import { getWikidataId } from "./tmdb";
 export type Plot = { paragraphs: string[]; article: string; url: string };
 
 // Wikimedia asks API clients to identify themselves.
-const USER_AGENT = `MovieTracker/1.0 (personal movie diary${process.env.VERCEL_PROJECT_PRODUCTION_URL ? `; https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : ""})`;
+const USER_AGENT = `RowSix/1.0 (personal movie diary${process.env.VERCEL_PROJECT_PRODUCTION_URL ? `; https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : ""})`;
 
 // The section names film and TV articles use for the story, best first.
 const SECTIONS = ["plot", "plot summary", "synopsis", "story", "storyline", "summary", "premise"];

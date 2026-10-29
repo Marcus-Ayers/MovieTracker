@@ -10,7 +10,7 @@ export async function GET() {
   return new Response(new Blob([new Uint8Array(zip)]), {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="movietracker-export-${day}.zip"`,
+      "Content-Disposition": `attachment; filename="rowsix-export-${day}.zip"`,
       "Cache-Control": "no-store",
     },
   });

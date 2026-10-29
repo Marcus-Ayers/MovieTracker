@@ -8,7 +8,7 @@ import { finishRestore, restoreBackupBatch, restoreBackupLists, restoreProfileSe
 import { BACKUP_FILE, backupSchema, type Backup } from "@/lib/backup-format";
 import { formatDate, plural } from "@/lib/format";
 
-/** Finds a MovieTracker backup among the chosen files (the export ZIP or the JSON inside it). */
+/** Finds a Row Six backup among the chosen files (the export ZIP or the JSON inside it). */
 export async function readBackup(files: File[]): Promise<Backup | "invalid" | null> {
   for (const file of files) {
     const name = file.name.toLowerCase();
@@ -61,7 +61,7 @@ function slices(backup: Backup) {
 
 type Totals = { added: number; skipped: number; watchlist: number; seenBefore: number; lists: number; failed: string[] };
 
-/** Shown when you drop a MovieTracker backup on the import page: what's in it, then the restore with a progress bar. */
+/** Shown when you drop a Row Six backup on the import page: what's in it, then the restore with a progress bar. */
 export function RestorePanel({ backup, onCancel }: { backup: Backup; onCancel: () => void }) {
   const [withSettings, setWithSettings] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -145,7 +145,7 @@ export function RestorePanel({ backup, onCancel }: { backup: Backup; onCancel: (
       <div className="mb-4 flex items-start gap-3">
         <ArchiveRestore className="mt-0.5 size-6 shrink-0 text-gold" />
         <div>
-          <h2 className="text-xl font-bold">Restore a MovieTracker backup</h2>
+          <h2 className="text-xl font-bold">Restore a Row Six backup</h2>
           <p className="text-sm text-muted">
             From {backup.profile.displayName} (@{backup.profile.username}), exported {formatDate(backup.exportedAt.slice(0, 10))}
           </p>

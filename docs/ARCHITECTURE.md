@@ -1,4 +1,4 @@
-# How MovieTracker fits together
+# How Row Six fits together
 
 A guide to reading and changing the code. The [README](../README.md) covers running and deploying it.
 
@@ -90,7 +90,7 @@ Patterns you'll see on the client:
 - **Scores** (`lib/ratings.ts`). IMDb ratings come from IMDb's free daily file (every title with 1,000+ votes). Rotten Tomatoes and Metacritic come from OMDb, which allows 1,000 calls a day. Each title is looked up once and saved; recent films are re-checked occasionally because their scores still move.
 - **Plots** (`lib/plot.ts`). TMDB → Wikidata → the English Wikipedia article → its "Plot" section.
 - **Plex** (`lib/plex.ts`). Sign in with a Plex PIN, then read your server's watch history. Finished movies and fully watched TV seasons become diary entries. It syncs nightly, and when you open the site after more than 30 minutes (`/api/rate-prompt`).
-- **Imports** (`lib/import-parse.ts` in the browser, `lib/import-actions.ts` + `import-save.ts` on the server). Letterboxd, TMDB ratings, Netflix, Plex, or a MovieTracker backup.
+- **Imports** (`lib/import-parse.ts` in the browser, `lib/import-actions.ts` + `import-save.ts` on the server). Letterboxd, TMDB ratings, Netflix, Plex, or a Row Six backup.
 
 ## The database
 
@@ -136,6 +136,7 @@ Defined in `src/db/schema.ts`. The important tables:
 - **Dialogs** (`components/ui/modal.tsx`) are native `<dialog>` elements: bottom sheets on phones, centered boxes on desktop. When their page goes into the background (Next keeps visited pages alive), they close *quietly* and reopen if you come back.
 - **The log form is loaded on demand** (`components/log/log-form.tsx`): its rich-text editor is the heaviest code on the site. `preloadLogForm()` starts the download as soon as you hover or tap something that leads to it.
 - **Installable app:** `app/manifest.ts` (full-screen, opens to Home), generated icons (`lib/app-icon.tsx`), iPhone settings in `app/layout.tsx`, and safe-area padding for the notch and home bar.
+- **The logo** (a row of six cinema seats, yours in red) is drawn once in `components/brand-mark.tsx` and reused by the header, the app icons, the install hint and the recap share card.
 
 ## Reading the TypeScript
 

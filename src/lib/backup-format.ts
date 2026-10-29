@@ -1,6 +1,8 @@
-// The MovieTracker backup file (movietracker-backup.json). Shared by export (server) and restore (browser + server).
+// The Row Six backup file (movietracker-backup.json). Shared by export (server) and restore (browser + server).
 import { z } from "zod";
 
+// These two keep the site's old name on purpose: restore looks for them, so changing them would stop older
+// backups from restoring.
 export const BACKUP_FORMAT = "movietracker-backup";
 export const BACKUP_FILE = "movietracker-backup.json";
 

@@ -22,11 +22,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "MovieTracker", template: "%s · MovieTracker" },
+  title: { default: "Row Six", template: "%s · Row Six" },
   description: "Find something to watch, and keep a diary of everything you've seen.",
-  applicationName: "MovieTracker",
+  applicationName: "Row Six",
   // Added to an iPhone's Home Screen, it opens full-screen with a black status bar.
-  appleWebApp: { capable: true, title: "MovieTracker", statusBarStyle: "black" },
+  appleWebApp: { capable: true, title: "Row Six", statusBarStyle: "black" },
   formatDetection: { telephone: false },
 };
 

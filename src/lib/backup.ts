@@ -119,8 +119,8 @@ function reviewText(html: string | null) {
     .trim();
 }
 
-const README = `MovieTracker export
-===================
+const README = `Row Six export
+==============
 
 movietracker-backup.json
   Everything: diary (dated and undated), ratings, reviews, likes, rewatches, tags,

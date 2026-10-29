@@ -13,11 +13,11 @@ export function LinkAccountForm() {
   return (
     <form onSubmit={submitTo(action)} className="space-y-4">
       <label className="block">
-        <span className="mb-1.5 block text-sm text-muted">Your old MovieTracker username</span>
+        <span className="mb-1.5 block text-sm text-muted">Your old username</span>
         <input name="username" autoComplete="username" required className={inputClass} />
       </label>
       <label className="block">
-        <span className="mb-1.5 block text-sm text-muted">Your old MovieTracker password</span>
+        <span className="mb-1.5 block text-sm text-muted">Your old password</span>
         <input name="password" type="password" autoComplete="current-password" required className={inputClass} />
       </label>
       {state.error && <p className="text-sm text-accent">{state.error}</p>}

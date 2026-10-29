@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { SeatRow } from "../brand-mark";
 import { HeaderShell } from "./header-shell";
 import { BrowseChips, MobileBack } from "./mobile-header";
 import { NavLinks, NavLinksFallback } from "./nav-links";
@@ -20,8 +21,9 @@ export function SiteHeader() {
           <Suspense>
             <MobileBack />
           </Suspense>
-          <Link href="/" className="text-xl font-black tracking-tight text-accent">
-            MOVIE<span className="text-fg">TRACKER</span>
+          <Link href="/" aria-label="Row Six home" className="flex items-center gap-2.5 text-xl font-black tracking-tight">
+            <SeatRow className="h-[18px] w-auto" />
+            ROW SIX
           </Link>
         </div>
         <div className="hidden min-w-0 flex-1 md:block">

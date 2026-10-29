@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 /** Makes the site installable: "Add to Home Screen" opens it full-screen, like an app. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "MovieTracker",
-    short_name: "MovieTracker",
+    name: "Row Six",
+    short_name: "Row Six",
     description: "Find something to watch, and keep a diary of everything you've seen.",
     start_url: "/",
     scope: "/",
