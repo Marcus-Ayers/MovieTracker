@@ -1,6 +1,9 @@
 /**
  * Row Six's logo: a row of six cinema seats, with yours (the fourth) in red. Plain SVG with no hooks, so it renders
  * in the header and in the generated images (app icons, share cards) alike.
+ *
+ * After changing the drawing, bump the logo version in app/icon.tsx and app/apple-icon.tsx, or browsers will keep
+ * showing the old icon.
  */
 
 const RED = "#e50914";
